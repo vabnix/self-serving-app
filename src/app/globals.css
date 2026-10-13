@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5;
+  }
+
+  .card-hover {
+    @apply transition duration-200 hover:shadow-lg hover:shadow-blue-950/5 hover:ring-blue-600/25 motion-safe:hover:-translate-y-0.5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 text-white shadow-sm shadow-blue-600/30 hover:bg-blue-700;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-950/10 hover:bg-zinc-50;
+  }
+
+  .btn-danger {
+    @apply bg-white text-red-600 shadow-xs ring-1 ring-red-600/30 hover:bg-red-50;
+  }
+
+  .field {
+    @apply mt-2 block w-full rounded-lg bg-white px-3.5 py-2.5 text-sm shadow-xs ring-1 ring-zinc-950/10 ring-inset placeholder:text-zinc-400 focus:ring-2 focus:ring-blue-600 focus:outline-none;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold tracking-wider text-zinc-500 uppercase;
+  }
+
+  .page-title {
+    @apply text-3xl font-semibold tracking-tight sm:text-4xl;
+  }
+
+  /* Soft blue glow with a faint grid, fading out down the page. */
+  .backdrop {
+    background-image:
+      radial-gradient(
+        60rem 28rem at 50% -8rem,
+        rgb(37 99 235 / 0.13),
+        transparent
+      ),
+      linear-gradient(to right, rgb(24 24 27 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(24 24 27 / 0.04) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      40px 40px,
+      40px 40px;
+    mask-image: linear-gradient(to bottom, black, transparent);
+  }
+}
