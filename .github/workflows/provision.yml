@@ -1,0 +1,41 @@
+# Triggered by the portal when a developer submits a request.
+# Placeholder: it validates and records the inputs. Terraform plan, policy
+# scan, approval and apply are still to be added.
+name: Provision resource
+run-name: Provision ${{ inputs.template }} (${{ inputs.request_id }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Portal request ID
+        required: true
+        type: string
+      template:
+        description: Catalog template to provision
+        required: true
+        type: string
+      inputs:
+        description: Terraform input variables as a JSON object
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write Terraform variables
+        env:
+          INPUTS: ${{ inputs.inputs }}
+        run: |
+          printf '%s' "$INPUTS" | jq -e 'type == "object"' > /dev/null
+          printf '%s' "$INPUTS" | jq . > terraform.tfvars.json
+          {
+            echo '### Terraform inputs'
+            echo '```json'
+            cat terraform.tfvars.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

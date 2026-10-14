@@ -1,6 +1,7 @@
 import { Layers } from "lucide-react";
 import Link from "next/link";
-import NavLinks from "@/components/NavLinks";
+import { Suspense } from "react";
+import NavLinks, { NavLinksFallback } from "@/components/NavLinks";
 
 export default function Header() {
   return (
@@ -14,7 +15,9 @@ export default function Header() {
             Self Serving Portal
           </span>
         </Link>
-        <NavLinks />
+        <Suspense fallback={<NavLinksFallback />}>
+          <NavLinks />
+        </Suspense>
       </div>
     </header>
   );

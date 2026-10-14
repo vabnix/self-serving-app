@@ -1,27 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { submitRequest } from "@/app/actions";
 import type { CatalogItem, Question } from "@/lib/catalog";
-import { generateNames, slugify } from "@/lib/naming";
-
-const teams = ["Platform", "Backend", "Data Engineering"];
-const environments = [
-  { value: "dev", label: "Development" },
-  { value: "staging", label: "Staging" },
-  { value: "prod", label: "Production" },
-];
-const sizes = [
-  { value: "small", label: "Small (Dev)" },
-  { value: "medium", label: "Medium (Staging)" },
-  { value: "large", label: "Large (Prod)" },
-] as const;
-
-type Size = (typeof sizes)[number]["value"];
-type Variables = Record<
-  string,
-  string | number | boolean | Record<string, string>
->;
+import { generateNames } from "@/lib/naming";
+import {
+  environments,
+  isExpiryRequired,
+  sizes,
+  teams,
+  today,
+  type Size,
+} from "@/lib/request-options";
 
 const labelClass = "text-sm font-semibold";
 const fieldClass = "field";
@@ -126,10 +117,11 @@ export default function RequestForm({
     team: "",
     environment: environments[0].value,
   });
-  const [submitted, setSubmitted] = useState<Variables | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const cost = sizing?.cost?.[size] ?? costNote;
   const generatedNames = generateNames(templateId, basics);
-  const expiryRequired = basics.environment !== "prod";
+  const expiryRequired = isExpiryRequired(basics.environment);
 
   function handleChange(event: React.FormEvent<HTMLFormElement>) {
     const data = new FormData(event.currentTarget);
@@ -138,13 +130,12 @@ export default function RequestForm({
       team: String(data.get("team") ?? ""),
       environment: String(data.get("environment") ?? ""),
     });
-    setSubmitted(null);
+    setError(null);
 
     const expiry = event.currentTarget.elements.namedItem("expires_on");
     if (expiry instanceof HTMLInputElement) {
-      const today = new Date().toLocaleDateString("en-CA");
       expiry.setCustomValidity(
-        expiry.value && expiry.value <= today ? "Choose a future date." : "",
+        expiry.value && expiry.value <= today() ? "Choose a future date." : "",
       );
     }
   }
@@ -152,30 +143,12 @@ export default function RequestForm({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const text = (name: string) => String(data.get(name) ?? "").trim();
-
-    const variables: Variables = {
-      template: templateId,
-      name: slugify(text("name")),
-      team: text("team"),
-      environment: text("environment"),
-      technical_contact: text("technical_contact"),
-      ...(text("expires_on") && { expires_on: text("expires_on") }),
-      resource_names: Object.fromEntries(
-        generatedNames.map((generated) => [generated.key, generated.value]),
-      ),
-    };
-    if (sizing) variables.size = size;
-    for (const question of questions) {
-      if (question.type === "boolean") {
-        variables[question.name] = data.has(question.name);
-      } else if (question.type === "number") {
-        variables[question.name] = Number(text(question.name));
-      } else if (text(question.name)) {
-        variables[question.name] = text(question.name);
-      }
-    }
-    setSubmitted(variables);
+    setError(null);
+    startTransition(async () => {
+      // On success the action redirects to the new request's page.
+      const result = await submitRequest(templateId, data);
+      if (result?.error) setError(result.error);
+    });
   }
 
   return (
@@ -359,28 +332,25 @@ export default function RequestForm({
         </div>
 
         <div className="flex flex-col gap-3">
-          <button type="submit" className="btn btn-primary py-3">
-            Submit Request
+          <button
+            type="submit"
+            disabled={pending}
+            className="btn btn-primary py-3"
+          >
+            {pending ? "Submitting…" : "Submit Request"}
           </button>
           <Link href="/catalog" className="btn btn-secondary py-3">
             Cancel
           </Link>
         </div>
 
-        {submitted && (
-          <div
-            role="status"
-            className="rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-600/20 ring-inset"
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-800 ring-1 ring-red-600/20 ring-inset"
           >
-            <p className="text-sm font-medium text-emerald-800">
-              ✓ Request submitted successfully! A confirmation will be sent to
-              your team.
-            </p>
-            <h3 className="eyebrow mt-4">Terraform inputs</h3>
-            <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-200">
-              {JSON.stringify(submitted, null, 2)}
-            </pre>
-          </div>
+            {error}
+          </p>
         )}
       </aside>
     </form>

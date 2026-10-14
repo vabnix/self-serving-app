@@ -4,15 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navLinks } from "@/lib/nav";
 
-export default function NavLinks() {
-  const pathname = usePathname();
-
+function NavList({ pathname }: { pathname: string | null }) {
   return (
     <nav className="flex items-center gap-1 text-sm font-medium">
       {navLinks.map((link) => {
         const active =
-          pathname === link.href ||
-          link.match.some((prefix) => pathname.startsWith(prefix));
+          pathname !== null &&
+          (pathname === link.href ||
+            link.match.some((prefix) => pathname.startsWith(prefix)));
         return (
           <Link
             key={link.href}
@@ -30,4 +29,13 @@ export default function NavLinks() {
       })}
     </nav>
   );
+}
+
+export default function NavLinks() {
+  return <NavList pathname={usePathname()} />;
+}
+
+// Shown while the current path is not yet known (pages rendered on request).
+export function NavLinksFallback() {
+  return <NavList pathname={null} />;
 }
