@@ -53,13 +53,6 @@ export function generateNames(
   const suffix = uniqueSuffix(`${team}/${workload}/${env}`);
 
   const names: GeneratedName[] = [];
-  if (team) {
-    names.push({
-      key: "resource_group",
-      label: "Resource group",
-      value: hyphenated("rg", team, env, 90),
-    });
-  }
 
   switch (templateId) {
     case "app-service-sql":

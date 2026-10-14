@@ -3,6 +3,7 @@ import { generateNames, slugify } from "@/lib/naming";
 import {
   environments,
   isExpiryRequired,
+  resourceGroupPattern,
   sizes,
   teams,
   today,
@@ -34,6 +35,16 @@ export function parseRequest(item: CatalogItem, data: FormData): Parsed {
     return fail("Select an environment.");
   }
 
+  const resourceGroup = item.needsResourceGroup
+    ? text("resource_group")
+    : undefined;
+  if (
+    item.needsResourceGroup &&
+    !new RegExp(`^(?:${resourceGroupPattern})$`).test(resourceGroup ?? "")
+  ) {
+    return fail("Enter a valid resource group name.");
+  }
+
   const size = item.sizing ? text("size") : undefined;
   if (item.sizing && !sizes.some((option) => option.value === size)) {
     return fail("Select a size.");
@@ -58,6 +69,7 @@ export function parseRequest(item: CatalogItem, data: FormData): Parsed {
     team,
     environment,
     technical_contact: technicalContact,
+    ...(resourceGroup && { resource_group: resourceGroup }),
     ...(size && { size }),
     ...(expiresOn && { expires_on: expiresOn }),
     resource_names: Object.fromEntries(

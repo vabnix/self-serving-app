@@ -8,6 +8,7 @@ import { generateNames } from "@/lib/naming";
 import {
   environments,
   isExpiryRequired,
+  resourceGroupPattern,
   sizes,
   teams,
   today,
@@ -105,12 +106,14 @@ export default function RequestForm({
   sizing,
   costNote,
   provisionable,
+  needsResourceGroup,
   questions,
 }: {
   templateId: string;
   sizing: CatalogItem["sizing"];
   costNote: CatalogItem["costNote"];
   provisionable: boolean;
+  needsResourceGroup: boolean;
   questions: Question[];
 }) {
   const [size, setSize] = useState<Size>("small");
@@ -203,6 +206,29 @@ export default function RequestForm({
                 ))}
               </select>
             </div>
+
+            {needsResourceGroup && (
+              <div>
+                <label htmlFor="resource_group" className={labelClass}>
+                  Resource group *
+                </label>
+                <input
+                  id="resource_group"
+                  name="resource_group"
+                  required
+                  maxLength={90}
+                  pattern={resourceGroupPattern}
+                  title="Letters, numbers, hyphens, underscores, periods and parentheses"
+                  placeholder="e.g., rg-orders-dev"
+                  aria-describedby="resource-group-hint"
+                  className={fieldClass}
+                />
+                <p id="resource-group-hint" className={helpClass}>
+                  The Azure resource group to create this in. It is created if
+                  it does not exist.
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="environment" className={labelClass}>

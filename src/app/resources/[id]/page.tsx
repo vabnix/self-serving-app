@@ -30,6 +30,45 @@ function Tile({
   );
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isResourceId = (value: unknown): value is string =>
+  typeof value === "string" && value.startsWith("/subscriptions/");
+
+// "primary_blob_endpoint" -> "Primary blob endpoint"
+const outputLabel = (key: string) =>
+  key.charAt(0).toUpperCase() + key.slice(1).replaceAll("_", " ");
+
+const outputValue = (value: unknown) =>
+  Array.isArray(value)
+    ? value.join(", ") || "None"
+    : typeof value === "string"
+      ? value
+      : JSON.stringify(value);
+
+// Splits the Terraform outputs the pipeline reported into the parts the page
+// shows separately. Works for any template that follows the same conventions:
+// resource IDs, plus optional `resource_group`, `location` and `tags`.
+function describeOutputs(outputs: Record<string, unknown>) {
+  const entries = Object.entries(outputs);
+  const resourceIds = entries.filter((entry): entry is [string, string] =>
+    isResourceId(entry[1]),
+  );
+  return {
+    resourceIds,
+    subscriptionId: resourceIds[0]?.[1].split("/")[2],
+    resourceGroup: outputs.resource_group,
+    location: outputs.location,
+    tags: isRecord(outputs.tags) ? Object.entries(outputs.tags) : [],
+    details: entries.filter(
+      ([key, value]) =>
+        !isResourceId(value) &&
+        !["resource_group", "location", "tags"].includes(key),
+    ),
+  };
+}
+
 async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const request = await getRequest(id);
@@ -37,6 +76,7 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
 
   const template = catalog.find((item) => item.id === request.templateId);
   const names = generateNames(request.templateId, request);
+  const deployed = request.outputs && describeOutputs(request.outputs);
 
   return (
     <>
@@ -82,22 +122,69 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="flex flex-col gap-6">
-          <section className="card p-6 sm:p-8">
-            <h2 className="text-lg font-semibold">Azure resource names</h2>
-            <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
-              {names.map((generated) => (
-                <div
-                  key={generated.key}
-                  className="border-b border-zinc-950/5 py-2.5"
-                >
-                  <dt className="text-xs text-zinc-500">{generated.label}</dt>
-                  <dd className="mt-0.5 font-mono text-sm break-all">
-                    {generated.value}
-                  </dd>
+          {deployed && (
+            <section className="card p-6 sm:p-8">
+              <h2 className="text-lg font-semibold">Deployed Infrastructure</h2>
+              {deployed.resourceIds.map(([key, resourceId]) => (
+                <div key={key} className="mt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="eyebrow">{outputLabel(key)}</h3>
+                    <a
+                      href={`https://portal.azure.com/#resource${resourceId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline"
+                    >
+                      Open in Azure portal
+                      <ExternalLink className="size-3.5" aria-hidden />
+                    </a>
+                  </div>
+                  <p className="mt-2 rounded-lg bg-zinc-950 p-3 font-mono text-xs leading-5 break-all text-zinc-200">
+                    {resourceId}
+                  </p>
                 </div>
               ))}
-            </dl>
-          </section>
+              {deployed.details.length > 0 && (
+                <>
+                  <h3 className="eyebrow mt-6">Configuration Details</h3>
+                  <dl className="mt-2 grid gap-x-8 sm:grid-cols-2">
+                    {deployed.details.map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="border-b border-zinc-950/5 py-2.5"
+                      >
+                        <dt className="text-xs text-zinc-500">
+                          {outputLabel(key)}
+                        </dt>
+                        <dd className="mt-0.5 font-mono text-sm break-all">
+                          {outputValue(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              )}
+            </section>
+          )}
+
+          {!deployed && (
+            <section className="card p-6 sm:p-8">
+              <h2 className="text-lg font-semibold">Azure resource names</h2>
+              <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
+                {names.map((generated) => (
+                  <div
+                    key={generated.key}
+                    className="border-b border-zinc-950/5 py-2.5"
+                  >
+                    <dt className="text-xs text-zinc-500">{generated.label}</dt>
+                    <dd className="mt-0.5 font-mono text-sm break-all">
+                      {generated.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           <section className="card p-6 sm:p-8">
             <h2 className="text-lg font-semibold">Terraform inputs</h2>
@@ -107,28 +194,77 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
           </section>
         </div>
 
-        <section className="card p-6">
-          <h2 className="text-lg font-semibold">Request Details</h2>
-          <dl className="mt-4 grid gap-3">
-            <Tile label="Request ID">
-              <span className="font-mono text-sm font-normal">
-                {request.id}
-              </span>
-            </Tile>
-            <Tile label="Team">{request.team}</Tile>
-            <Tile label="Environment">
-              {environmentLabel(request.environment)}
-            </Tile>
-            {request.size && (
-              <Tile label="Size">{capitalize(request.size)}</Tile>
-            )}
-            <Tile label="Technical point of contact">
-              {request.technicalContact}
-            </Tile>
-            <Tile label="Expires on">{request.expiresOn ?? "No expiry"}</Tile>
-            <Tile label="Submitted">{formatDateTime(request.createdAt)}</Tile>
-          </dl>
-        </section>
+        <div className="flex flex-col gap-6">
+          <section className="card p-6">
+            <h2 className="text-lg font-semibold">Request Details</h2>
+            <dl className="mt-4 grid gap-3">
+              <Tile label="Request ID">
+                <span className="font-mono text-sm font-normal">
+                  {request.id}
+                </span>
+              </Tile>
+              <Tile label="Team">{request.team}</Tile>
+              {typeof request.inputs.resource_group === "string" && (
+                <Tile label="Resource group">
+                  {request.inputs.resource_group}
+                </Tile>
+              )}
+              <Tile label="Environment">
+                {environmentLabel(request.environment)}
+              </Tile>
+              {request.size && (
+                <Tile label="Size">{capitalize(request.size)}</Tile>
+              )}
+              <Tile label="Technical point of contact">
+                {request.technicalContact}
+              </Tile>
+              <Tile label="Expires on">{request.expiresOn ?? "No expiry"}</Tile>
+              <Tile label="Submitted">{formatDateTime(request.createdAt)}</Tile>
+            </dl>
+          </section>
+
+          {deployed && (
+            <section className="card p-6">
+              <h2 className="text-lg font-semibold">Infrastructure Metadata</h2>
+              <dl className="mt-4 grid gap-3">
+                {deployed.subscriptionId && (
+                  <Tile label="Subscription ID">
+                    <span className="font-mono text-xs font-normal break-all">
+                      {deployed.subscriptionId}
+                    </span>
+                  </Tile>
+                )}
+                {typeof deployed.resourceGroup === "string" && (
+                  <Tile label="Resource Group">{deployed.resourceGroup}</Tile>
+                )}
+                {typeof deployed.location === "string" && (
+                  <Tile label="Location">{deployed.location}</Tile>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {deployed && deployed.tags.length > 0 && (
+            <section className="card p-6">
+              <h2 className="text-lg font-semibold">Tags</h2>
+              <dl className="mt-4 flex flex-wrap gap-2">
+                {deployed.tags.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex overflow-hidden rounded-lg text-sm ring-1 ring-zinc-950/10"
+                  >
+                    <dt className="bg-zinc-100 px-2.5 py-1.5 font-mono text-xs leading-5 text-zinc-600">
+                      {key}
+                    </dt>
+                    <dd className="px-2.5 py-1.5 font-medium break-all">
+                      {outputValue(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+        </div>
       </div>
     </>
   );

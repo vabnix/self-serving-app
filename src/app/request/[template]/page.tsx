@@ -50,6 +50,7 @@ export default async function RequestPage({
           sizing={item.sizing}
           costNote={item.costNote}
           provisionable={item.provisionable ?? false}
+          needsResourceGroup={item.needsResourceGroup ?? false}
           questions={item.questions}
         />
       </div>

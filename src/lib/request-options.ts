@@ -14,6 +14,10 @@ export const sizes = [
 
 export type Size = (typeof sizes)[number]["value"];
 
+// Azure's rule for resource group names: up to 90 letters, numbers,
+// underscores, hyphens, periods and parentheses, not ending in a period.
+export const resourceGroupPattern = "[\\w.()\\-]{0,89}[\\w()\\-]";
+
 // Production resources may be kept indefinitely; everything else must expire.
 export function isExpiryRequired(environment: string) {
   return environment !== "prod";

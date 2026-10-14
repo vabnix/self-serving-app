@@ -27,6 +27,9 @@ export type CatalogItem = {
   // Pricing shown for services that have no per-size cost.
   costNote?: string;
   questions: Question[];
+  // True for services created inside an Azure resource group. The requester
+  // names the group on the form.
+  needsResourceGroup?: boolean;
   // True once a Terraform template exists for the service. Requests for other
   // services are saved but the provisioning pipeline is not started.
   provisionable?: boolean;
@@ -40,6 +43,7 @@ export const catalog: CatalogItem[] = [
     description:
       "Web application with SQL Server database. Best for traditional web apps and APIs.",
     icon: Globe,
+    needsResourceGroup: true,
     sizing: {
       help: "Sets the App Service plan and SQL database tier.",
       cost: {
@@ -77,6 +81,7 @@ export const catalog: CatalogItem[] = [
     description:
       "Blob storage for files, tables for NoSQL, queues for messaging.",
     icon: HardDrive,
+    needsResourceGroup: true,
     provisionable: true,
     costNote: "Billed by usage: data stored and operations.",
     questions: [
@@ -126,6 +131,7 @@ export const catalog: CatalogItem[] = [
     category: "Security",
     description: "Secure storage for secrets, keys, and certificates.",
     icon: Lock,
+    needsResourceGroup: true,
     costNote: "$0.50/month",
     questions: [
       {

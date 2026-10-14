@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Gives the GitHub Actions provisioning workflow an Azure identity it signs in
-# as through OIDC federation (no stored secret). The identity can only manage
-# the resource group that holds resources created through the portal.
+# as through OIDC federation (no stored secret). Requesters name the resource
+# group for each resource and the workflow creates it when it does not exist,
+# so the identity is Contributor on the whole subscription.
 set -euo pipefail
 
 LOCATION="${LOCATION:-centralus}"
@@ -10,10 +11,6 @@ REPOSITORY="vabnix@19367260/self-serving-app@1418096279"
 BRANCH="main"
 GROUP="rg-selfservice-poc"
 IDENTITY="id-selfservice-poc-github"
-# Everything the portal provisions lands here.
-RESOURCES_GROUP="rg-selfservice-poc-resources"
-
-az group create --name "$RESOURCES_GROUP" --location "$LOCATION" --output none
 
 az identity create --resource-group "$GROUP" --name "$IDENTITY" \
   --location "$LOCATION" --output none
@@ -25,7 +22,7 @@ az identity federated-credential create --resource-group "$GROUP" \
   --audiences api://AzureADTokenExchange --output none
 
 PRINCIPAL_ID="$(az identity show --resource-group "$GROUP" --name "$IDENTITY" --query principalId -o tsv)"
-SCOPE="$(az group show --name "$RESOURCES_GROUP" --query id -o tsv)"
+SCOPE="/subscriptions/$(az account show --query id -o tsv)"
 az role assignment create --assignee-object-id "$PRINCIPAL_ID" \
   --assignee-principal-type ServicePrincipal --role Contributor \
   --scope "$SCOPE" --output none
