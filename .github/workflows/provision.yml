@@ -1,9 +1,10 @@
-# Triggered by the portal when a developer submits a request. Runs the
-# Terraform template for the requested service with the inputs from the form.
+# Triggered by the portal when a developer submits a request, and again when
+# they delete it. Runs the Terraform template for the requested service with
+# the inputs from the form, to create or destroy the resource.
 # Reports the result back to the portal. Still to be added: policy scan and
 # approval gate.
 name: Provision resource
-run-name: Provision ${{ inputs.template }} (${{ inputs.request_id }})
+run-name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Provision' }} ${{ inputs.template }} (${{ inputs.request_id }})
 
 on:
   workflow_dispatch:
@@ -20,6 +21,12 @@ on:
         description: Terraform input variables as a JSON object
         required: true
         type: string
+      action:
+        description: apply creates or updates the resource, destroy removes it
+        required: false
+        type: choice
+        options: [apply, destroy]
+        default: apply
       callback_url:
         description: Portal URL to report the result to
         required: false
@@ -103,6 +110,7 @@ jobs:
       # otherwise. Groups are shared between requests, so they are created
       # here rather than by a request's Terraform state.
       - name: Ensure resource group
+        if: inputs.action != 'destroy'
         run: |
           group="$(jq -r '.resource_group // empty' "$TF_DIR/terraform.tfvars.json")"
           if [[ -z "$group" ]]; then exit 0; fi
@@ -129,12 +137,20 @@ jobs:
             -backend-config="key=$REQUEST_ID.tfstate"
 
       - name: Terraform plan
-        run: terraform -chdir="$TF_DIR" plan -out=tfplan
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          if [[ "$ACTION" == "destroy" ]]; then
+            terraform -chdir="$TF_DIR" plan -destroy -out=tfplan
+          else
+            terraform -chdir="$TF_DIR" plan -out=tfplan
+          fi
 
       - name: Terraform apply
         run: terraform -chdir="$TF_DIR" apply tfplan
 
       - name: Record outputs
+        if: inputs.action != 'destroy'
         run: |
           {
             echo '### Terraform outputs'
@@ -149,11 +165,14 @@ jobs:
           CALLBACK_URL: ${{ inputs.callback_url }}
           CALLBACK_TOKEN: ${{ inputs.callback_token }}
           JOB_STATUS: ${{ job.status }}
+          ACTION: ${{ inputs.action }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           status=failed
           outputs='{}'
-          if [[ "$JOB_STATUS" == "success" ]]; then
+          if [[ "$JOB_STATUS" == "success" && "$ACTION" == "destroy" ]]; then
+            status=deleted
+          elif [[ "$JOB_STATUS" == "success" ]]; then
             status=deployed
             outputs="$(terraform -chdir="$TF_DIR" output -json | jq -c 'map_values(.value)')"
           fi

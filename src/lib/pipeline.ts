@@ -13,6 +13,8 @@ export async function triggerPipeline(request: {
   templateId: string;
   inputs: TerraformInputs;
   callbackToken: string;
+  // destroy removes what an earlier apply created for the same request.
+  action?: "apply" | "destroy";
 }): Promise<TriggerResult> {
   const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
@@ -40,6 +42,7 @@ export async function triggerPipeline(request: {
             request_id: request.id,
             template: request.templateId,
             inputs: JSON.stringify(request.inputs),
+            action: request.action ?? "apply",
             ...(portalUrl && {
               callback_url: `${portalUrl}/api/requests/${request.id}/status`,
               callback_token: request.callbackToken,

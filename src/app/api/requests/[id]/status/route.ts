@@ -13,7 +13,9 @@ export async function POST(
   { params }: RouteContext<"/api/requests/[id]/status">,
 ) {
   const { id } = await params;
-  const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+  const token = request.headers
+    .get("authorization")
+    ?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const text = await request.text();
@@ -29,7 +31,9 @@ export async function POST(
 
   if (
     !isRecord(body) ||
-    (body.status !== "deployed" && body.status !== "failed") ||
+    (body.status !== "deployed" &&
+      body.status !== "deleted" &&
+      body.status !== "failed") ||
     (body.outputs !== undefined && !isRecord(body.outputs)) ||
     (body.run_url !== undefined &&
       (typeof body.run_url !== "string" ||

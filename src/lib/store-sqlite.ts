@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { addedColumns, type Row, type Store } from "@/lib/store";
+import { addedColumns, type EventRow, type Row, type Store } from "@/lib/store";
 
 export function createSqliteStore(): Store {
   const path = resolve(
@@ -25,6 +25,15 @@ export function createSqliteStore(): Store {
       created_at TEXT NOT NULL
     )
   `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS request_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      detail TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
   const existing = db.prepare("PRAGMA table_info(requests)").all();
   for (const [column, type] of addedColumns) {
     if (!existing.some((info) => info.name === column)) {
@@ -40,8 +49,7 @@ export function createSqliteStore(): Store {
     },
     async get(id) {
       return db.prepare("SELECT * FROM requests WHERE id = ?").get(id) as
-        | Row
-        | undefined;
+        Row | undefined;
     },
     async insert(row) {
       const columns = Object.keys(row);
@@ -57,6 +65,20 @@ export function createSqliteStore(): Store {
         `UPDATE requests SET ${columns.map((column) => `${column} = ?`).join(", ")}
          WHERE id = ?`,
       ).run(...Object.values(changes), id);
+    },
+    async addEvent(event) {
+      db.prepare(
+        `INSERT INTO request_events (request_id, type, detail, created_at)
+         VALUES (?, ?, ?, ?)`,
+      ).run(event.request_id, event.type, event.detail, event.created_at);
+    },
+    async listEvents(requestId) {
+      return db
+        .prepare(
+          `SELECT request_id, type, detail, created_at FROM request_events
+           WHERE request_id = ? ORDER BY id`,
+        )
+        .all(requestId) as EventRow[];
     },
   };
 }

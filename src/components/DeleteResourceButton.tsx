@@ -1,15 +1,31 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { deleteResource } from "@/app/actions";
 
-export default function DeleteResourceButton({ name }: { name: string }) {
-  const [requested, setRequested] = useState(false);
+export default function DeleteResourceButton({
+  id,
+  name,
+  deleting,
+}: {
+  id: string;
+  name: string;
+  deleting: boolean;
+}) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   function handleClick() {
-    if (window.confirm(`Delete ${name}? This cannot be undone.`)) {
-      setRequested(true);
-    }
+    if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteResource(id);
+      if (result?.error) setError(result.error);
+      router.refresh();
+    });
   }
 
   return (
@@ -17,15 +33,15 @@ export default function DeleteResourceButton({ name }: { name: string }) {
       <button
         type="button"
         onClick={handleClick}
-        disabled={requested}
+        disabled={pending || deleting}
         className="btn btn-danger"
       >
         <Trash2 className="size-4" aria-hidden />
-        Delete Resource
+        {pending || deleting ? "Deleting…" : "Delete Resource"}
       </button>
-      {requested && (
-        <p role="status" className="basis-full text-sm text-zinc-600">
-          Demo only: deletion is not connected yet, so nothing was deleted.
+      {error && (
+        <p role="alert" className="basis-full text-sm font-medium text-red-700">
+          {error}
         </p>
       )}
     </>

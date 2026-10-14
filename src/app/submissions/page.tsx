@@ -2,6 +2,7 @@ import { ArrowRight, Box } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import AutoRefresh from "@/components/AutoRefresh";
 import IconTile from "@/components/IconTile";
 import StatusBadge from "@/components/StatusBadge";
 import { catalog } from "@/lib/catalog";
@@ -29,13 +30,21 @@ async function RequestList() {
     );
   }
 
+  const inProgress = requests.some(
+    (request) => request.status === "building" || request.status === "deleting",
+  );
+
   return (
     <ul className="flex flex-col gap-4">
+      {inProgress && <AutoRefresh />}
       {requests.map((request) => {
         const template = catalog.find((item) => item.id === request.templateId);
         const fields = [
           { label: "Team", value: request.team },
-          { label: "Environment", value: environmentLabel(request.environment) },
+          {
+            label: "Environment",
+            value: environmentLabel(request.environment),
+          },
           { label: "Size", value: request.size && capitalize(request.size) },
           { label: "Created", value: formatDateTime(request.createdAt) },
         ].filter((field) => field.value);
@@ -86,9 +95,7 @@ export default function SubmissionsPage() {
         status.
       </p>
       <div className="mt-10">
-        <Suspense
-          fallback={<p className="text-zinc-600">Loading requests…</p>}
-        >
+        <Suspense fallback={<p className="text-zinc-600">Loading requests…</p>}>
           <RequestList />
         </Suspense>
       </div>

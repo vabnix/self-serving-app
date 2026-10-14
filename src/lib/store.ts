@@ -28,14 +28,28 @@ export const addedColumns = [
 ] as const;
 
 export type RowUpdate = Partial<
-  Pick<Row, "status" | "pipeline_note" | "outputs" | "run_url">
+  Pick<
+    Row,
+    "status" | "pipeline_note" | "outputs" | "run_url" | "callback_token"
+  >
 >;
+
+// One row per thing that happened to a request: submitted, deployed, deletion
+// requested, deleted, and so on.
+export type EventRow = {
+  request_id: string;
+  type: string;
+  detail: string | null;
+  created_at: string;
+};
 
 export type Store = {
   list(): Promise<Row[]>;
   get(id: string): Promise<Row | undefined>;
   insert(row: Row): Promise<void>;
   update(id: string, changes: RowUpdate): Promise<void>;
+  addEvent(event: EventRow): Promise<void>;
+  listEvents(requestId: string): Promise<EventRow[]>;
 };
 
 const globalForStore = globalThis as { portalStore?: Promise<Store> };

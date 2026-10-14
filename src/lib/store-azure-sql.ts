@@ -1,5 +1,5 @@
 import sql from "mssql";
-import { addedColumns, type Row, type Store } from "@/lib/store";
+import { addedColumns, type EventRow, type Row, type Store } from "@/lib/store";
 
 // A serverless database pauses when idle and takes up to a minute to resume;
 // until then it refuses connections. Retry instead of failing the request.
@@ -37,6 +37,16 @@ export async function createAzureSqlStore(
       status NVARCHAR(20) NOT NULL,
       pipeline_note NVARCHAR(MAX),
       inputs NVARCHAR(MAX) NOT NULL,
+      created_at NVARCHAR(30) NOT NULL
+    )
+  `);
+  await pool.request().query(`
+    IF OBJECT_ID('request_events', 'U') IS NULL
+    CREATE TABLE request_events (
+      id INT IDENTITY PRIMARY KEY,
+      request_id NVARCHAR(40) NOT NULL,
+      type NVARCHAR(40) NOT NULL,
+      detail NVARCHAR(MAX),
       created_at NVARCHAR(30) NOT NULL
     )
   `);
@@ -87,6 +97,30 @@ export async function createAzureSqlStore(
         `UPDATE requests SET ${columns.map((column) => `${column} = @${column}`).join(", ")}
          WHERE id = @id`,
       );
+    },
+    async addEvent(event) {
+      const request = pool.request();
+      for (const [column, value] of Object.entries(event)) {
+        request.input(column, sql.NVarChar, value);
+      }
+      await withRetry(() =>
+        request.query(
+          `INSERT INTO request_events (request_id, type, detail, created_at)
+           VALUES (@request_id, @type, @detail, @created_at)`,
+        ),
+      );
+    },
+    async listEvents(requestId) {
+      const result = await withRetry(() =>
+        pool
+          .request()
+          .input("request_id", sql.NVarChar, requestId)
+          .query<EventRow>(
+            `SELECT request_id, type, detail, created_at FROM request_events
+             WHERE request_id = @request_id ORDER BY id`,
+          ),
+      );
+      return result.recordset;
     },
   };
 }

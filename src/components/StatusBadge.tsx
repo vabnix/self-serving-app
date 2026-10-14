@@ -24,6 +24,16 @@ const styles: Record<
     badge: "bg-red-50 text-red-700 ring-red-600/20",
     dot: "bg-red-500",
   },
+  deleting: {
+    label: "Deleting",
+    badge: "bg-amber-50 text-amber-800 ring-amber-600/20",
+    dot: "bg-amber-500 motion-safe:animate-pulse",
+  },
+  deleted: {
+    label: "Deleted",
+    badge: "bg-zinc-100 text-zinc-500 ring-zinc-600/20",
+    dot: "bg-zinc-400",
+  },
 };
 
 export default function StatusBadge({ status }: { status: RequestStatus }) {

@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import AutoRefresh from "@/components/AutoRefresh";
 import DeleteResourceButton from "@/components/DeleteResourceButton";
 import IconTile from "@/components/IconTile";
 import StatusBadge from "@/components/StatusBadge";
 import { catalog } from "@/lib/catalog";
 import { capitalize, environmentLabel, formatDateTime } from "@/lib/format";
 import { generateNames } from "@/lib/naming";
-import { getRequest } from "@/lib/requests";
+import { getRequest, listEvents, type RequestEventType } from "@/lib/requests";
 
 export const metadata: Metadata = {
   title: "Request details",
@@ -29,6 +30,16 @@ function Tile({
     </div>
   );
 }
+
+const eventLabels: Record<RequestEventType, string> = {
+  submitted: "Request submitted",
+  provisioning_started: "Provisioning started",
+  deployed: "Deployed",
+  provisioning_failed: "Provisioning failed",
+  deletion_requested: "Deletion requested",
+  deleted: "Deleted",
+  deletion_failed: "Deletion failed",
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -77,9 +88,17 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
   const template = catalog.find((item) => item.id === request.templateId);
   const names = generateNames(request.templateId, request);
   const deployed = request.outputs && describeOutputs(request.outputs);
+  // Requests saved before activity was recorded still show when they began.
+  const recorded = await listEvents(id);
+  const events = recorded.some((event) => event.type === "submitted")
+    ? recorded
+    : [{ type: "submitted" as const, at: request.createdAt }, ...recorded];
 
   return (
     <>
+      {(request.status === "building" || request.status === "deleting") && (
+        <AutoRefresh />
+      )}
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <IconTile icon={template?.icon ?? Box} size="lg" />
         <div className="min-w-0 flex-1">
@@ -93,18 +112,13 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
           <Link href="/submissions" className="btn btn-secondary">
             Back to Requests
           </Link>
-          {request.runUrl && (
-            <a
-              href={request.runUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-secondary"
-            >
-              Pipeline run
-              <ExternalLink className="size-4" aria-hidden />
-            </a>
+          {request.status !== "deleted" && (
+            <DeleteResourceButton
+              id={request.id}
+              name={request.name}
+              deleting={request.status === "deleting"}
+            />
           )}
-          <DeleteResourceButton name={request.name} />
         </div>
       </div>
 
@@ -167,7 +181,7 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
             </section>
           )}
 
-          {!deployed && (
+          {!deployed && request.status !== "deleted" && (
             <section className="card p-6 sm:p-8">
               <h2 className="text-lg font-semibold">Azure resource names</h2>
               <dl className="mt-4 grid gap-x-8 sm:grid-cols-2">
@@ -186,11 +200,66 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
             </section>
           )}
 
+          {deployed && (
+            <section className="card p-6 sm:p-8">
+              <h2 className="text-lg font-semibold">Infrastructure Metadata</h2>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+                {deployed.subscriptionId && (
+                  <Tile label="Subscription ID">
+                    <span className="font-mono text-xs font-normal break-all">
+                      {deployed.subscriptionId}
+                    </span>
+                  </Tile>
+                )}
+                {typeof deployed.resourceGroup === "string" && (
+                  <Tile label="Resource Group">{deployed.resourceGroup}</Tile>
+                )}
+                {typeof deployed.location === "string" && (
+                  <Tile label="Region">{deployed.location}</Tile>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {deployed && deployed.tags.length > 0 && (
+            <section className="card p-6 sm:p-8">
+              <h2 className="text-lg font-semibold">Tags</h2>
+              <dl className="mt-4 flex flex-wrap gap-2">
+                {deployed.tags.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex overflow-hidden rounded-lg text-sm ring-1 ring-zinc-950/10"
+                  >
+                    <dt className="bg-zinc-100 px-2.5 py-1.5 font-mono text-xs leading-5 text-zinc-600">
+                      {key}
+                    </dt>
+                    <dd className="px-2.5 py-1.5 font-medium break-all">
+                      {outputValue(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           <section className="card p-6 sm:p-8">
-            <h2 className="text-lg font-semibold">Terraform inputs</h2>
-            <pre className="mt-4 overflow-x-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs leading-5 text-zinc-200">
-              {JSON.stringify(request.inputs, null, 2)}
-            </pre>
+            <h2 className="text-lg font-semibold">Activity</h2>
+            <ol className="mt-4 flex flex-col gap-4 border-l border-zinc-950/10 pl-5">
+              {events.map((event, index) => (
+                <li key={index} className="relative">
+                  <span className="absolute top-1.5 -left-[1.5625rem] size-2.5 rounded-full bg-blue-600 ring-4 ring-white" />
+                  <p className="text-sm font-semibold">
+                    {eventLabels[event.type] ?? event.type}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {formatDateTime(event.at)}
+                  </p>
+                  {event.detail && (
+                    <p className="mt-1 text-xs text-zinc-600">{event.detail}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
           </section>
         </div>
 
@@ -222,48 +291,6 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
               <Tile label="Submitted">{formatDateTime(request.createdAt)}</Tile>
             </dl>
           </section>
-
-          {deployed && (
-            <section className="card p-6">
-              <h2 className="text-lg font-semibold">Infrastructure Metadata</h2>
-              <dl className="mt-4 grid gap-3">
-                {deployed.subscriptionId && (
-                  <Tile label="Subscription ID">
-                    <span className="font-mono text-xs font-normal break-all">
-                      {deployed.subscriptionId}
-                    </span>
-                  </Tile>
-                )}
-                {typeof deployed.resourceGroup === "string" && (
-                  <Tile label="Resource Group">{deployed.resourceGroup}</Tile>
-                )}
-                {typeof deployed.location === "string" && (
-                  <Tile label="Location">{deployed.location}</Tile>
-                )}
-              </dl>
-            </section>
-          )}
-
-          {deployed && deployed.tags.length > 0 && (
-            <section className="card p-6">
-              <h2 className="text-lg font-semibold">Tags</h2>
-              <dl className="mt-4 flex flex-wrap gap-2">
-                {deployed.tags.map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex overflow-hidden rounded-lg text-sm ring-1 ring-zinc-950/10"
-                  >
-                    <dt className="bg-zinc-100 px-2.5 py-1.5 font-mono text-xs leading-5 text-zinc-600">
-                      {key}
-                    </dt>
-                    <dd className="px-2.5 py-1.5 font-medium break-all">
-                      {outputValue(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
         </div>
       </div>
     </>
