@@ -281,14 +281,16 @@ export default function RequestForm({
               <input
                 id="technical_contact"
                 name="technical_contact"
-                type="email"
+                type="text"
                 required
-                placeholder="e.g., jane.doe@example.com"
+                maxLength={100}
+                autoComplete="name"
+                placeholder="e.g., Jane Doe"
                 aria-describedby="technical-contact-hint"
                 className={fieldClass}
               />
               <p id="technical-contact-hint" className={helpClass}>
-                Email of the person to reach about this resource.
+                Full name of the person to reach about this resource.
               </p>
             </div>
 

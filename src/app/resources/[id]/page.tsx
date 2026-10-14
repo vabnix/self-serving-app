@@ -284,6 +284,9 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
               {request.size && (
                 <Tile label="Size">{capitalize(request.size)}</Tile>
               )}
+              {request.requester && (
+                <Tile label="Requested by">{request.requester}</Tile>
+              )}
               <Tile label="Technical point of contact">
                 {request.technicalContact}
               </Tile>

@@ -13,6 +13,7 @@ locals {
       request_id        = var.request_id
       managed_by        = "self-service-portal"
     },
+    var.requester == null ? {} : { requester = var.requester },
     var.expires_on == null ? {} : { expires_on = var.expires_on },
   )
 }

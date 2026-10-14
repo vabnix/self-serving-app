@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { catalog } from "@/lib/catalog";
 import { triggerPipeline } from "@/lib/pipeline";
 import { parseRequest } from "@/lib/request-inputs";
@@ -17,7 +18,10 @@ export async function submitRequest(templateId: string, data: FormData) {
   const item = catalog.find((item) => item.id === templateId);
   if (!item) return { error: "This service is no longer in the catalog." };
 
-  const parsed = parseRequest(item, data);
+  const user = await getCurrentUser();
+  if (!user) return { error: "Sign in to submit a request." };
+
+  const parsed = parseRequest(item, data, user.name);
   if (!parsed.ok) return { error: parsed.error };
 
   const { id, callbackToken } = await createRequest(parsed.request);

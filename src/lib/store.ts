@@ -18,6 +18,9 @@ export type Row = {
   // Terraform outputs as JSON, and the pipeline run that produced them.
   outputs: string | null;
   run_url: string | null;
+  // Name of the signed-in user who submitted the request. Null for requests
+  // made before sign-in was added.
+  requester: string | null;
 };
 
 // Columns added after the first release, as [name, SQLite type, SQL Server type].
@@ -25,6 +28,7 @@ export const addedColumns = [
   ["callback_token", "TEXT", "NVARCHAR(100)"],
   ["outputs", "TEXT", "NVARCHAR(MAX)"],
   ["run_url", "TEXT", "NVARCHAR(400)"],
+  ["requester", "TEXT", "NVARCHAR(200)"],
 ] as const;
 
 export type RowUpdate = Partial<

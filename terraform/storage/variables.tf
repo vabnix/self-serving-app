@@ -28,8 +28,14 @@ variable "environment" {
 }
 
 variable "technical_contact" {
-  description = "Email of the technical point of contact."
+  description = "Name of the technical point of contact."
   type        = string
+}
+
+variable "requester" {
+  description = "Name of the signed-in user who submitted the request. Null for requests made before sign-in."
+  type        = string
+  default     = null
 }
 
 variable "expires_on" {

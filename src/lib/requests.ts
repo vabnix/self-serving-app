@@ -21,6 +21,8 @@ export type NewRequest = {
   // Absent for services that are not sized.
   size?: string;
   technicalContact: string;
+  // The signed-in user who submitted it. Absent on older requests.
+  requester?: string;
   expiresOn?: string;
   inputs: TerraformInputs;
 };
@@ -85,6 +87,7 @@ function fromRow(row: Row): ResourceRequest {
     environment: row.environment,
     size: row.size ?? undefined,
     technicalContact: row.technical_contact,
+    requester: row.requester ?? undefined,
     expiresOn: row.expires_on ?? undefined,
     status: row.status,
     pipelineNote: row.pipeline_note ?? undefined,
@@ -130,6 +133,7 @@ export async function createRequest(request: NewRequest) {
     callback_token: callbackToken,
     outputs: null,
     run_url: null,
+    requester: request.requester ?? null,
   });
   await recordEvent(id, "submitted");
   return { id, callbackToken };

@@ -15,8 +15,13 @@ type Parsed = { ok: true; request: NewRequest } | { ok: false; error: string };
 const fail = (error: string): Parsed => ({ ok: false, error });
 
 // Validates a submitted request form and turns it into the record to store
-// and the inputs to pass to the Terraform template.
-export function parseRequest(item: CatalogItem, data: FormData): Parsed {
+// and the inputs to pass to the Terraform template. The requester is the
+// signed-in user's name.
+export function parseRequest(
+  item: CatalogItem,
+  data: FormData,
+  requester: string,
+): Parsed {
   const text = (name: string) => {
     const value = data.get(name);
     return typeof value === "string" ? value.trim() : "";
@@ -51,8 +56,12 @@ export function parseRequest(item: CatalogItem, data: FormData): Parsed {
   }
 
   const technicalContact = text("technical_contact");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(technicalContact)) {
-    return fail("Enter an email address for the technical point of contact.");
+  // Letters in any language, with spaces, periods, apostrophes and hyphens.
+  if (
+    technicalContact.length > 100 ||
+    !/^\p{L}[\p{L}\p{M} .'-]*$/u.test(technicalContact)
+  ) {
+    return fail("Enter the full name of the technical point of contact.");
   }
 
   const expiresOn = text("expires_on") || undefined;
@@ -69,6 +78,7 @@ export function parseRequest(item: CatalogItem, data: FormData): Parsed {
     team,
     environment,
     technical_contact: technicalContact,
+    requester,
     ...(resourceGroup && { resource_group: resourceGroup }),
     ...(size && { size }),
     ...(expiresOn && { expires_on: expiresOn }),
@@ -124,6 +134,7 @@ export function parseRequest(item: CatalogItem, data: FormData): Parsed {
       environment,
       size,
       technicalContact,
+      requester,
       expiresOn,
       inputs,
     },
