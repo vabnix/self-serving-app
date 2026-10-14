@@ -2,6 +2,7 @@ import { Layers } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import NavLinks, { NavLinksFallback } from "@/components/NavLinks";
+import UserMenu from "@/components/UserMenu";
 
 export default function Header() {
   return (
@@ -15,9 +16,15 @@ export default function Header() {
             Self Serving Portal
           </span>
         </Link>
-        <Suspense fallback={<NavLinksFallback />}>
-          <NavLinks />
-        </Suspense>
+        <div className="flex items-center gap-3">
+          <Suspense fallback={<NavLinksFallback />}>
+            <NavLinks />
+          </Suspense>
+          {/* Reads the request headers, so it renders on each request. */}
+          <Suspense>
+            <UserMenu />
+          </Suspense>
+        </div>
       </div>
     </header>
   );

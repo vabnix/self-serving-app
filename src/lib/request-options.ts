@@ -1,4 +1,9 @@
-export const teams = ["Platform", "Backend", "Data Engineering"];
+export const teams = ["Service Redesign",
+  "Digital Conversion",
+  "Partnership", 
+  "Observability", 
+  "Data Engineering"
+];
 
 export const environments = [
   { value: "dev", label: "Development" },
