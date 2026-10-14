@@ -15,9 +15,10 @@ cp -R public .next/standalone/public
 PACKAGE="$(mktemp -d)/portal.zip"
 (cd .next/standalone && zip -qr "$PACKAGE" .)
 az webapp deploy --resource-group "$GROUP" --name "$APP" \
-  --src-path "$PACKAGE" --type zip --output none
-# Without a restart the running server keeps serving pages it cached in memory
-# from the previous build.
+  --src-path "$PACKAGE" --type zip --clean true --output none
+# --clean removes the previous build, including the page cache Next.js writes
+# to disk at runtime; the restart drops what the running server holds in
+# memory. Without both, the site keeps serving pages from the old build.
 az webapp restart --resource-group "$GROUP" --name "$APP"
 
 echo "Deployed. https://$APP.azurewebsites.net"
