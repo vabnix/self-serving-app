@@ -15,7 +15,7 @@ export async function submitRequest(templateId: string, data: FormData) {
   const parsed = parseRequest(item, data);
   if (!parsed.ok) return { error: parsed.error };
 
-  const id = await createRequest(parsed.request);
+  const { id, callbackToken } = await createRequest(parsed.request);
 
   if (!item.provisionable) {
     await setRequestStatus(
@@ -30,6 +30,7 @@ export async function submitRequest(templateId: string, data: FormData) {
     id,
     templateId,
     inputs: parsed.request.inputs,
+    callbackToken,
   });
   if (result.status === "triggered") {
     await setRequestStatus(id, "building");

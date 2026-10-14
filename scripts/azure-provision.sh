@@ -42,6 +42,7 @@ az sql db create --resource-group "$GROUP" --server "$SQL_SERVER" \
 az webapp config appsettings set --resource-group "$GROUP" --name "$APP" \
   --output none --settings \
   "AZURE_SQL_CONNECTION_STRING=Server=tcp:$SQL_SERVER.database.windows.net,1433;Database=$SQL_DB;User Id=$SQL_ADMIN;Password=$SQL_PASSWORD;Encrypt=true;Connection Timeout=60" \
+  "PORTAL_URL=https://$APP.azurewebsites.net" \
   SCM_DO_BUILD_DURING_DEPLOYMENT=false
 az webapp config set --resource-group "$GROUP" --name "$APP" \
   --startup-file "HOSTNAME=0.0.0.0 node server.js" --output none

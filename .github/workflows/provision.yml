@@ -1,7 +1,7 @@
 # Triggered by the portal when a developer submits a request. Runs the
 # Terraform template for the requested service with the inputs from the form.
-# Still to be added: policy scan, approval gate, and reporting back to the
-# portal.
+# Reports the result back to the portal. Still to be added: policy scan and
+# approval gate.
 name: Provision resource
 run-name: Provision ${{ inputs.template }} (${{ inputs.request_id }})
 
@@ -19,6 +19,14 @@ on:
       inputs:
         description: Terraform input variables as a JSON object
         required: true
+        type: string
+      callback_url:
+        description: Portal URL to report the result to
+        required: false
+        type: string
+      callback_token:
+        description: One-time token for the callback, issued per request
+        required: false
         type: string
 
 permissions:
@@ -48,6 +56,12 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     steps:
+      - name: Mask callback token
+        env:
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+        run: |
+          if [[ -n "$CALLBACK_TOKEN" ]]; then echo "::add-mask::$CALLBACK_TOKEN"; fi
+
       - uses: actions/checkout@v4
 
       - name: Select template
@@ -106,3 +120,28 @@ jobs:
             terraform -chdir="$TF_DIR" output -json | jq 'map_values(.value)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report result to portal
+        if: always() && inputs.callback_url != ''
+        env:
+          CALLBACK_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          status=failed
+          outputs='{}'
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            status=deployed
+            outputs="$(terraform -chdir="$TF_DIR" output -json | jq -c 'map_values(.value)')"
+          fi
+          jq -n --arg status "$status" --arg run_url "$RUN_URL" \
+            --argjson outputs "$outputs" \
+            '{status: $status, run_url: $run_url, outputs: $outputs}' > result.json
+          # The portal runs on a free tier that sleeps when idle, so retry.
+          curl --fail-with-body --silent --show-error \
+            --retry 6 --retry-delay 20 --retry-all-errors --max-time 120 \
+            -X POST "$CALLBACK_URL" \
+            -H "Authorization: Bearer $CALLBACK_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @result.json

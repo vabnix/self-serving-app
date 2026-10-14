@@ -1,4 +1,4 @@
-import { ArrowLeft, Box } from "lucide-react";
+import { ArrowLeft, Box, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -53,6 +53,17 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
           <Link href="/submissions" className="btn btn-secondary">
             Back to Requests
           </Link>
+          {request.runUrl && (
+            <a
+              href={request.runUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-secondary"
+            >
+              Pipeline run
+              <ExternalLink className="size-4" aria-hidden />
+            </a>
+          )}
           <DeleteResourceButton name={request.name} />
         </div>
       </div>

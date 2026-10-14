@@ -12,6 +12,7 @@ export async function triggerPipeline(request: {
   id: string;
   templateId: string;
   inputs: TerraformInputs;
+  callbackToken: string;
 }): Promise<TriggerResult> {
   const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
@@ -19,6 +20,9 @@ export async function triggerPipeline(request: {
 
   const workflow = process.env.GITHUB_WORKFLOW ?? "provision.yml";
   const ref = process.env.GITHUB_WORKFLOW_REF ?? "main";
+  // Where the workflow reports the result. Without a public PORTAL_URL (for
+  // example on localhost) the request stays "building".
+  const portalUrl = process.env.PORTAL_URL?.replace(/\/+$/, "");
 
   try {
     const response = await fetch(
@@ -36,6 +40,10 @@ export async function triggerPipeline(request: {
             request_id: request.id,
             template: request.templateId,
             inputs: JSON.stringify(request.inputs),
+            ...(portalUrl && {
+              callback_url: `${portalUrl}/api/requests/${request.id}/status`,
+              callback_token: request.callbackToken,
+            }),
           },
         }),
         signal: AbortSignal.timeout(15_000),

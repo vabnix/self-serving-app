@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { Row, Store } from "@/lib/store";
+import { addedColumns, type Row, type Store } from "@/lib/store";
 
 export function createSqliteStore(): Store {
   const path = resolve(
@@ -25,6 +25,12 @@ export function createSqliteStore(): Store {
       created_at TEXT NOT NULL
     )
   `);
+  const existing = db.prepare("PRAGMA table_info(requests)").all();
+  for (const [column, type] of addedColumns) {
+    if (!existing.some((info) => info.name === column)) {
+      db.exec(`ALTER TABLE requests ADD COLUMN ${column} ${type}`);
+    }
+  }
 
   return {
     async list() {
@@ -38,30 +44,19 @@ export function createSqliteStore(): Store {
         | undefined;
     },
     async insert(row) {
+      const columns = Object.keys(row);
       db.prepare(
-        `INSERT INTO requests (id, name, template_id, team, environment, size,
-           technical_contact, expires_on, status, pipeline_note, inputs,
-           created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        row.id,
-        row.name,
-        row.template_id,
-        row.team,
-        row.environment,
-        row.size,
-        row.technical_contact,
-        row.expires_on,
-        row.status,
-        row.pipeline_note,
-        row.inputs,
-        row.created_at,
-      );
+        `INSERT INTO requests (${columns.join(", ")})
+         VALUES (${columns.map(() => "?").join(", ")})`,
+      ).run(...Object.values(row));
     },
-    async setStatus(id, status, pipelineNote) {
+    async update(id, changes) {
+      const columns = Object.keys(changes);
+      if (columns.length === 0) return;
       db.prepare(
-        "UPDATE requests SET status = ?, pipeline_note = ? WHERE id = ?",
-      ).run(status, pipelineNote, id);
+        `UPDATE requests SET ${columns.map((column) => `${column} = ?`).join(", ")}
+         WHERE id = ?`,
+      ).run(...Object.values(changes), id);
     },
   };
 }

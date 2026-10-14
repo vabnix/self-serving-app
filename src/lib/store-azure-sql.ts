@@ -1,5 +1,5 @@
 import sql from "mssql";
-import type { Row, Store } from "@/lib/store";
+import { addedColumns, type Row, type Store } from "@/lib/store";
 
 // A serverless database pauses when idle and takes up to a minute to resume;
 // until then it refuses connections. Retry instead of failing the request.
@@ -40,6 +40,12 @@ export async function createAzureSqlStore(
       created_at NVARCHAR(30) NOT NULL
     )
   `);
+  for (const [column, , type] of addedColumns) {
+    await pool.request().query(`
+      IF COL_LENGTH('requests', '${column}') IS NULL
+      ALTER TABLE requests ADD ${column} ${type}
+    `);
+  }
 
   return {
     async list() {
@@ -60,28 +66,27 @@ export async function createAzureSqlStore(
       return result.recordset[0];
     },
     async insert(row) {
+      const columns = Object.keys(row);
       const request = pool.request();
       for (const [column, value] of Object.entries(row)) {
         request.input(column, sql.NVarChar, value);
       }
       await request.query(
-        `INSERT INTO requests (id, name, template_id, team, environment, size,
-           technical_contact, expires_on, status, pipeline_note, inputs,
-           created_at)
-         VALUES (@id, @name, @template_id, @team, @environment, @size,
-           @technical_contact, @expires_on, @status, @pipeline_note, @inputs,
-           @created_at)`,
+        `INSERT INTO requests (${columns.join(", ")})
+         VALUES (${columns.map((column) => `@${column}`).join(", ")})`,
       );
     },
-    async setStatus(id, status, pipelineNote) {
-      await pool
-        .request()
-        .input("id", sql.NVarChar, id)
-        .input("status", sql.NVarChar, status)
-        .input("pipeline_note", sql.NVarChar, pipelineNote)
-        .query(
-          "UPDATE requests SET status = @status, pipeline_note = @pipeline_note WHERE id = @id",
-        );
+    async update(id, changes) {
+      const columns = Object.keys(changes);
+      if (columns.length === 0) return;
+      const request = pool.request().input("id", sql.NVarChar, id);
+      for (const [column, value] of Object.entries(changes)) {
+        request.input(column, sql.NVarChar, value);
+      }
+      await request.query(
+        `UPDATE requests SET ${columns.map((column) => `${column} = @${column}`).join(", ")}
+         WHERE id = @id`,
+      );
     },
   };
 }

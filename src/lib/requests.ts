@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { connection } from "next/server";
 import { getStore, type Row } from "@/lib/store";
 
@@ -27,6 +27,9 @@ export type ResourceRequest = NewRequest & {
   status: RequestStatus;
   // Explains the status when the pipeline could not be started.
   pipelineNote?: string;
+  // Reported by the pipeline when it finishes.
+  outputs?: Record<string, unknown>;
+  runUrl?: string;
   createdAt: string;
 };
 
@@ -43,6 +46,8 @@ function fromRow(row: Row): ResourceRequest {
     status: row.status,
     pipelineNote: row.pipeline_note ?? undefined,
     inputs: JSON.parse(row.inputs),
+    outputs: row.outputs ? JSON.parse(row.outputs) : undefined,
+    runUrl: row.run_url ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -60,8 +65,11 @@ export async function getRequest(id: string) {
   return row && fromRow(row);
 }
 
+// Returns the new request's ID and the secret the pipeline must present when
+// it reports the result.
 export async function createRequest(request: NewRequest) {
   const id = `req-${randomUUID().slice(0, 8)}`;
+  const callbackToken = randomBytes(32).toString("hex");
   const store = await getStore();
   await store.insert({
     id,
@@ -76,8 +84,11 @@ export async function createRequest(request: NewRequest) {
     pipeline_note: null,
     inputs: JSON.stringify(request.inputs),
     created_at: new Date().toISOString(),
+    callback_token: callbackToken,
+    outputs: null,
+    run_url: null,
   });
-  return id;
+  return { id, callbackToken };
 }
 
 export async function setRequestStatus(
@@ -86,5 +97,40 @@ export async function setRequestStatus(
   pipelineNote?: string,
 ) {
   const store = await getStore();
-  await store.setStatus(id, status, pipelineNote ?? null);
+  await store.update(id, { status, pipeline_note: pipelineNote ?? null });
+}
+
+// Records the result the pipeline reported. Returns false when the request
+// does not exist or the token is not the one issued for it.
+export async function recordPipelineResult(
+  id: string,
+  token: string,
+  result: {
+    status: "deployed" | "failed";
+    outputs?: Record<string, unknown>;
+    runUrl?: string;
+  },
+) {
+  const store = await getStore();
+  const row = await store.get(id);
+  const expected = Buffer.from(row?.callback_token ?? "");
+  const presented = Buffer.from(token);
+  if (
+    expected.length === 0 ||
+    expected.length !== presented.length ||
+    !timingSafeEqual(expected, presented)
+  ) {
+    return false;
+  }
+
+  await store.update(id, {
+    status: result.status,
+    pipeline_note:
+      result.status === "failed"
+        ? "The provisioning run failed. Open the pipeline run for details."
+        : null,
+    outputs: result.outputs ? JSON.stringify(result.outputs) : null,
+    run_url: result.runUrl ?? null,
+  });
+  return true;
 }

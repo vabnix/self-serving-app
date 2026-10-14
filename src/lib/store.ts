@@ -13,17 +13,29 @@ export type Row = {
   pipeline_note: string | null;
   inputs: string;
   created_at: string;
+  // Secret the pipeline presents when it reports the result of this request.
+  callback_token: string | null;
+  // Terraform outputs as JSON, and the pipeline run that produced them.
+  outputs: string | null;
+  run_url: string | null;
 };
+
+// Columns added after the first release, as [name, SQLite type, SQL Server type].
+export const addedColumns = [
+  ["callback_token", "TEXT", "NVARCHAR(100)"],
+  ["outputs", "TEXT", "NVARCHAR(MAX)"],
+  ["run_url", "TEXT", "NVARCHAR(400)"],
+] as const;
+
+export type RowUpdate = Partial<
+  Pick<Row, "status" | "pipeline_note" | "outputs" | "run_url">
+>;
 
 export type Store = {
   list(): Promise<Row[]>;
   get(id: string): Promise<Row | undefined>;
   insert(row: Row): Promise<void>;
-  setStatus(
-    id: string,
-    status: RequestStatus,
-    pipelineNote: string | null,
-  ): Promise<void>;
+  update(id: string, changes: RowUpdate): Promise<void>;
 };
 
 const globalForStore = globalThis as { portalStore?: Promise<Store> };
