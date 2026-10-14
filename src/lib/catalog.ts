@@ -27,6 +27,9 @@ export type CatalogItem = {
   // Pricing shown for services that have no per-size cost.
   costNote?: string;
   questions: Question[];
+  // True once a Terraform template exists for the service. Requests for other
+  // services are saved but the provisioning pipeline is not started.
+  provisionable?: boolean;
 };
 
 export const catalog: CatalogItem[] = [
@@ -74,6 +77,7 @@ export const catalog: CatalogItem[] = [
     description:
       "Blob storage for files, tables for NoSQL, queues for messaging.",
     icon: HardDrive,
+    provisionable: true,
     costNote: "Billed by usage: data stored and operations.",
     questions: [
       {

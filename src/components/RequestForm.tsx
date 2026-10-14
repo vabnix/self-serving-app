@@ -104,11 +104,13 @@ export default function RequestForm({
   templateId,
   sizing,
   costNote,
+  provisionable,
   questions,
 }: {
   templateId: string;
   sizing: CatalogItem["sizing"];
   costNote: CatalogItem["costNote"];
+  provisionable: boolean;
   questions: Question[];
 }) {
   const [size, setSize] = useState<Size>("small");
@@ -330,6 +332,13 @@ export default function RequestForm({
             </dl>
           )}
         </div>
+
+        {!provisionable && (
+          <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-600/20 ring-inset">
+            Preview: requests for this service are saved, but provisioning is
+            not available yet.
+          </p>
+        )}
 
         <div className="flex flex-col gap-3">
           <button

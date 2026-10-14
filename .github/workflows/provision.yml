@@ -1,6 +1,7 @@
-# Triggered by the portal when a developer submits a request.
-# Placeholder: it validates and records the inputs. Terraform plan, policy
-# scan, approval and apply are still to be added.
+# Triggered by the portal when a developer submits a request. Runs the
+# Terraform template for the requested service with the inputs from the form.
+# Still to be added: policy scan, approval gate, and reporting back to the
+# portal.
 name: Provision resource
 run-name: Provision ${{ inputs.template }} (${{ inputs.request_id }})
 
@@ -22,20 +23,86 @@ on:
 
 permissions:
   contents: read
+  # Lets the job sign in to Azure through OIDC federation.
+  id-token: write
+
+# The identity and state storage created by scripts/azure-github-identity.sh
+# and scripts/azure-terraform-state.sh. These are identifiers, not secrets;
+# access comes from the federated credential.
+env:
+  ARM_USE_OIDC: "true"
+  ARM_USE_AZUREAD: "true"
+  ARM_CLIENT_ID: b4c1a528-e374-43cf-94ac-1e897922d5c2
+  ARM_TENANT_ID: ed7289ca-458d-4b7d-9747-640a95980153
+  ARM_SUBSCRIPTION_ID: 66d91e75-93f4-487e-a3ee-25f4bad3a5b7
+  STATE_RESOURCE_GROUP: rg-selfservice-poc
+  STATE_ACCOUNT: stselfservicepoc66d91e
+  STATE_CONTAINER: tfstate
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_VAR_request_id: ${{ inputs.request_id }}
+  # Everything the portal provisions lands in this resource group.
+  TF_VAR_resource_group_name: rg-selfservice-poc-resources
 
 jobs:
-  validate:
+  provision:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Select template
+        env:
+          TEMPLATE: ${{ inputs.template }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          if [[ ! "$TEMPLATE" =~ ^[a-z0-9-]+$ || ! -d "terraform/$TEMPLATE" ]]; then
+            echo "::error::No Terraform template for '$TEMPLATE'."
+            exit 1
+          fi
+          if [[ ! "$REQUEST_ID" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::Invalid request ID."
+            exit 1
+          fi
+          echo "TF_DIR=terraform/$TEMPLATE" >> "$GITHUB_ENV"
+
       - name: Write Terraform variables
         env:
           INPUTS: ${{ inputs.inputs }}
         run: |
           printf '%s' "$INPUTS" | jq -e 'type == "object"' > /dev/null
-          printf '%s' "$INPUTS" | jq . > terraform.tfvars.json
+          printf '%s' "$INPUTS" | jq . > "$TF_DIR/terraform.tfvars.json"
           {
             echo '### Terraform inputs'
             echo '```json'
-            cat terraform.tfvars.json
+            cat "$TF_DIR/terraform.tfvars.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        env:
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          terraform -chdir="$TF_DIR" init \
+            -backend-config="resource_group_name=$STATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$STATE_ACCOUNT" \
+            -backend-config="container_name=$STATE_CONTAINER" \
+            -backend-config="key=$REQUEST_ID.tfstate"
+
+      - name: Terraform plan
+        run: terraform -chdir="$TF_DIR" plan -out=tfplan
+
+      - name: Terraform apply
+        run: terraform -chdir="$TF_DIR" apply tfplan
+
+      - name: Record outputs
+        run: |
+          {
+            echo '### Terraform outputs'
+            echo '```json'
+            terraform -chdir="$TF_DIR" output -json | jq 'map_values(.value)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

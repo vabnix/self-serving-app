@@ -49,6 +49,7 @@ export default async function RequestPage({
           templateId={item.id}
           sizing={item.sizing}
           costNote={item.costNote}
+          provisionable={item.provisionable ?? false}
           questions={item.questions}
         />
       </div>

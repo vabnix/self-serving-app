@@ -17,6 +17,15 @@ export async function submitRequest(templateId: string, data: FormData) {
 
   const id = await createRequest(parsed.request);
 
+  if (!item.provisionable) {
+    await setRequestStatus(
+      id,
+      "submitted",
+      "Provisioning for this service is not available yet, so nothing has been provisioned.",
+    );
+    redirect(`/resources/${id}`);
+  }
+
   const result = await triggerPipeline({
     id,
     templateId,
