@@ -16,5 +16,8 @@ PACKAGE="$(mktemp -d)/portal.zip"
 (cd .next/standalone && zip -qr "$PACKAGE" .)
 az webapp deploy --resource-group "$GROUP" --name "$APP" \
   --src-path "$PACKAGE" --type zip --output none
+# Without a restart the running server keeps serving pages it cached in memory
+# from the previous build.
+az webapp restart --resource-group "$GROUP" --name "$APP"
 
 echo "Deployed. https://$APP.azurewebsites.net"

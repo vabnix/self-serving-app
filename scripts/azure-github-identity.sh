@@ -5,7 +5,8 @@
 set -euo pipefail
 
 LOCATION="${LOCATION:-centralus}"
-REPOSITORY="vabnix/self-serving-app"
+# GitHub's OIDC subject includes the numeric owner and repository IDs.
+REPOSITORY="vabnix@19367260/self-serving-app@1418096279"
 BRANCH="main"
 GROUP="rg-selfservice-poc"
 IDENTITY="id-selfservice-poc-github"
