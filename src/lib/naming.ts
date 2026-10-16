@@ -41,8 +41,140 @@ function compact(prefix: string, workload: string, env: string, max: number) {
   return prefix + workload.replace(/-/g, "").slice(0, room) + env;
 }
 
+type NameParts = { workload: string; env: string; suffix: string };
+
+// The resource names each catalog service creates.
+const serviceNames: Record<string, (parts: NameParts) => GeneratedName[]> = {
+  "app-service-sql": ({ workload, env, suffix }) => [
+    {
+      key: "app_service_plan",
+      label: "App Service plan",
+      value: hyphenated("asp", workload, env, 60),
+    },
+    {
+      key: "app_service",
+      label: "App Service",
+      value: hyphenated("app", workload, `${env}-${suffix}`, 60),
+    },
+    {
+      key: "sql_server",
+      label: "SQL server",
+      value: hyphenated("sql", workload, `${env}-${suffix}`, 63),
+    },
+    {
+      key: "sql_database",
+      label: "SQL database",
+      value: hyphenated("sqldb", workload, env, 128),
+    },
+  ],
+  storage: ({ workload, env, suffix }) => [
+    {
+      key: "storage_account",
+      label: "Storage account",
+      value: compact("st", workload, `${env}${suffix}`, 24),
+    },
+  ],
+  "key-vault": ({ workload, env, suffix }) => [
+    {
+      key: "key_vault",
+      label: "Key Vault",
+      value: hyphenated("kv", workload, `${env}-${suffix}`, 24),
+    },
+  ],
+  apim: ({ workload, env, suffix }) => [
+    {
+      key: "api_management",
+      label: "API Management",
+      value: hyphenated("apim", workload, `${env}-${suffix}`, 50),
+    },
+  ],
+  "container-app": ({ workload, env }) => [
+    {
+      key: "container_app_environment",
+      label: "Container Apps environment",
+      value: hyphenated("cae", workload, env, 60),
+    },
+    {
+      key: "container_app",
+      label: "Container App",
+      value: hyphenated("ca", workload, env, 32),
+    },
+  ],
+  "container-registry": ({ workload, env, suffix }) => [
+    {
+      key: "container_registry",
+      label: "Container registry",
+      value: compact("cr", workload, `${env}${suffix}`, 50),
+    },
+  ],
+  functions: ({ workload, env, suffix }) => [
+    {
+      key: "function_app",
+      label: "Function App",
+      value: hyphenated("func", workload, `${env}-${suffix}`, 60),
+    },
+    {
+      key: "function_plan",
+      label: "Function App plan",
+      value: hyphenated("asp-func", workload, env, 60),
+    },
+    {
+      key: "function_storage",
+      label: "Function App storage account",
+      value: compact("stfn", workload, `${env}${suffix}`, 24),
+    },
+  ],
+  postgresql: ({ workload, env, suffix }) => [
+    {
+      key: "postgresql_server",
+      label: "PostgreSQL server",
+      value: hyphenated("psql", workload, `${env}-${suffix}`, 63),
+    },
+  ],
+  "event-grid": ({ workload, env }) => [
+    {
+      key: "event_grid_topic",
+      label: "Event Grid topic",
+      value: hyphenated("evgt", workload, env, 50),
+    },
+  ],
+  "app-insights": ({ workload, env }) => [
+    {
+      key: "application_insights",
+      label: "Application Insights",
+      value: hyphenated("appi", workload, env, 255),
+    },
+    {
+      key: "log_analytics_workspace",
+      label: "Log Analytics workspace",
+      value: hyphenated("log", workload, env, 63),
+    },
+  ],
+  "front-door": ({ workload, env, suffix }) => [
+    {
+      key: "front_door_profile",
+      label: "Front Door profile",
+      value: hyphenated("afd", workload, env, 90),
+    },
+    {
+      key: "front_door_endpoint",
+      label: "Front Door endpoint",
+      value: hyphenated("fde", workload, `${env}-${suffix}`, 46),
+    },
+  ],
+  aks: ({ workload, env }) => [
+    {
+      key: "aks_cluster",
+      label: "AKS cluster",
+      value: hyphenated("aks", workload, env, 63),
+    },
+  ],
+};
+
+// The names for every resource the given services create. A bundle passes
+// all of its services.
 export function generateNames(
-  templateId: string,
+  serviceIds: string[],
   input: { name: string; team: string; environment: string },
 ): GeneratedName[] {
   const workload = slugify(input.name);
@@ -52,54 +184,7 @@ export function generateNames(
   // The environment and suffix always stay intact when a name is shortened.
   const suffix = uniqueSuffix(`${team}/${workload}/${env}`);
 
-  const names: GeneratedName[] = [];
-
-  switch (templateId) {
-    case "app-service-sql":
-      names.push(
-        {
-          key: "app_service_plan",
-          label: "App Service plan",
-          value: hyphenated("asp", workload, env, 60),
-        },
-        {
-          key: "app_service",
-          label: "App Service",
-          value: hyphenated("app", workload, `${env}-${suffix}`, 60),
-        },
-        {
-          key: "sql_server",
-          label: "SQL server",
-          value: hyphenated("sql", workload, `${env}-${suffix}`, 63),
-        },
-        {
-          key: "sql_database",
-          label: "SQL database",
-          value: hyphenated("sqldb", workload, env, 128),
-        },
-      );
-      break;
-    case "storage":
-      names.push({
-        key: "storage_account",
-        label: "Storage account",
-        value: compact("st", workload, `${env}${suffix}`, 24),
-      });
-      break;
-    case "key-vault":
-      names.push({
-        key: "key_vault",
-        label: "Key Vault",
-        value: hyphenated("kv", workload, `${env}-${suffix}`, 24),
-      });
-      break;
-    case "aks-namespace":
-      names.push({
-        key: "namespace",
-        label: "Namespace",
-        value: hyphenated("", workload, env, 63),
-      });
-      break;
-  }
-  return names;
+  return serviceIds.flatMap(
+    (id) => serviceNames[id]?.({ workload, env, suffix }) ?? [],
+  );
 }

@@ -1,6 +1,5 @@
 import { ArrowRight, Box, Shield, Zap } from "lucide-react";
 import Link from "next/link";
-import IconTile from "@/components/IconTile";
 
 const features = [
   {
@@ -46,17 +45,24 @@ export default function Home() {
           My Requests
         </Link>
       </div>
-      <ul className="mt-20 grid w-full gap-5 text-left sm:grid-cols-3">
+      <ul className="mt-20 grid w-full gap-6 sm:grid-cols-3">
         {features.map((feature) => (
-          <li key={feature.title} className="card p-6">
-            <IconTile icon={feature.icon} />
-            <h2 className="mt-5 font-semibold">{feature.title}</h2>
-            <p className="mt-1.5 text-sm leading-6 text-zinc-600">
+          <li key={feature.title} className="card p-8">
+            <feature.icon
+              className="size-9 text-blue-600"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <h2 className="mt-5 text-lg font-semibold">{feature.title}</h2>
+            <p className="mx-auto mt-2 max-w-60 leading-7 text-zinc-600">
               {feature.description}
             </p>
           </li>
         ))}
       </ul>
+      <Link href="/catalog" className="btn btn-primary mt-14 px-14 py-4 text-base">
+        Browse Catalog
+      </Link>
     </main>
   );
 }

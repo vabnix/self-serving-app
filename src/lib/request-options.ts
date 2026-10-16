@@ -11,6 +11,14 @@ export const environments = [
   { value: "prod", label: "Production" },
 ];
 
+// Regions developers may choose. The first is the default.
+export const regions = [
+  { value: "centralus", label: "Central US" },
+  { value: "eastus", label: "East US" },
+  { value: "eastus2", label: "East US 2" },
+  { value: "westus2", label: "West US 2" },
+];
+
 export const sizes = [
   { value: "small", label: "Small (Dev)" },
   { value: "medium", label: "Medium (Staging)" },

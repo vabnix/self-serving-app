@@ -1,8 +1,9 @@
-import type { CatalogItem } from "@/lib/catalog";
+import { type CatalogItem, serviceIds } from "@/lib/catalog";
 import { generateNames, slugify } from "@/lib/naming";
 import {
   environments,
   isExpiryRequired,
+  regions,
   resourceGroupPattern,
   sizes,
   teams,
@@ -50,6 +51,14 @@ export function parseRequest(
     return fail("Enter a valid resource group name.");
   }
 
+  const location = item.needsResourceGroup ? text("location") : undefined;
+  if (
+    item.needsResourceGroup &&
+    !regions.some((option) => option.value === location)
+  ) {
+    return fail("Select a region.");
+  }
+
   const size = item.sizing ? text("size") : undefined;
   if (item.sizing && !sizes.some((option) => option.value === size)) {
     return fail("Select a size.");
@@ -80,10 +89,11 @@ export function parseRequest(
     technical_contact: technicalContact,
     requester,
     ...(resourceGroup && { resource_group: resourceGroup }),
+    ...(location && { location }),
     ...(size && { size }),
     ...(expiresOn && { expires_on: expiresOn }),
     resource_names: Object.fromEntries(
-      generateNames(item.id, { name, team, environment }).map((generated) => [
+      generateNames(serviceIds(item.id), { name, team, environment }).map((generated) => [
         generated.key,
         generated.value,
       ]),
@@ -124,6 +134,11 @@ export function parseRequest(
       return invalid;
     }
   }
+
+  const asked = (name: string) =>
+    item.questions.some((question) => question.name === name);
+  const invalidCombination = item.validate?.(inputs, asked);
+  if (invalidCombination) return fail(invalidCombination);
 
   return {
     ok: true,

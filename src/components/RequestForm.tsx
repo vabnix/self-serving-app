@@ -8,6 +8,7 @@ import { generateNames } from "@/lib/naming";
 import {
   environments,
   isExpiryRequired,
+  regions,
   resourceGroupPattern,
   sizes,
   teams,
@@ -107,14 +108,17 @@ export default function RequestForm({
   costNote,
   provisionable,
   needsResourceGroup,
-  questions,
+  serviceIds,
+  questionGroups,
 }: {
   templateId: string;
   sizing: CatalogItem["sizing"];
   costNote: CatalogItem["costNote"];
   provisionable: boolean;
   needsResourceGroup: boolean;
-  questions: Question[];
+  serviceIds: string[];
+  // Untitled for a single service; one titled group per service in a bundle.
+  questionGroups: { title?: string; questions: Question[] }[];
 }) {
   const [size, setSize] = useState<Size>("small");
   const [basics, setBasics] = useState({
@@ -125,7 +129,7 @@ export default function RequestForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const cost = sizing?.cost?.[size] ?? costNote;
-  const generatedNames = generateNames(templateId, basics);
+  const generatedNames = generateNames(serviceIds, basics);
   const expiryRequired = isExpiryRequired(basics.environment);
 
   function handleChange(event: React.FormEvent<HTMLFormElement>) {
@@ -230,6 +234,31 @@ export default function RequestForm({
               </div>
             )}
 
+            {needsResourceGroup && (
+              <div>
+                <label htmlFor="location" className={labelClass}>
+                  Region *
+                </label>
+                <select
+                  id="location"
+                  name="location"
+                  required
+                  aria-describedby="location-hint"
+                  className={fieldClass}
+                >
+                  {regions.map((region) => (
+                    <option key={region.value} value={region.value}>
+                      {region.label}
+                    </option>
+                  ))}
+                </select>
+                <p id="location-hint" className={helpClass}>
+                  Where the resources are created. A new resource group is
+                  created here too.
+                </p>
+              </div>
+            )}
+
             <div>
               <label htmlFor="environment" className={labelClass}>
                 Environment *
@@ -315,17 +344,22 @@ export default function RequestForm({
           </div>
         </section>
 
-        {questions.length > 0 && (
-          <fieldset className="border-t border-zinc-950/5 pt-8">
-            <legend className="sr-only">Service settings</legend>
-            <h2 className="eyebrow">Service settings</h2>
+        {questionGroups.map((group) => (
+          <fieldset
+            key={group.title ?? "service"}
+            className="border-t border-zinc-950/5 pt-8"
+          >
+            <legend className="sr-only">
+              {group.title ?? "Service"} settings
+            </legend>
+            <h2 className="eyebrow">{group.title ?? "Service"} settings</h2>
             <div className="mt-5 grid gap-x-5 gap-y-6 sm:grid-cols-2">
-              {questions.map((question) => (
+              {group.questions.map((question) => (
                 <QuestionField key={question.name} question={question} />
               ))}
             </div>
           </fieldset>
-        )}
+        ))}
       </div>
 
       <aside className="card flex flex-col gap-5 p-6 lg:sticky lg:top-24">
