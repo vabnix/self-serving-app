@@ -5,7 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Deploy only committed code, so the live site always matches a commit.
-if [[ -n "$(git status --porcelain)" ]]; then
+# Untracked files are not built, so only tracked changes block a deploy.
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "Uncommitted changes. Commit or stash them before deploying." >&2
   exit 1
 fi
@@ -26,11 +27,12 @@ cp -R public .next/standalone/public
 
 PACKAGE="$(mktemp -d)/portal.zip"
 (cd .next/standalone && zip -qr "$PACKAGE" .)
-# Record the deployed commit; `az webapp config appsettings list` shows it.
-az webapp config appsettings set --resource-group "$GROUP" --name "$APP" \
-  --settings DEPLOYED_COMMIT="$COMMIT" --output none
 az webapp deploy --resource-group "$GROUP" --name "$APP" \
   --src-path "$PACKAGE" --type zip --clean true --output none
+# Recorded only once the deploy succeeds; `az webapp config appsettings list`
+# shows it.
+az webapp config appsettings set --resource-group "$GROUP" --name "$APP" \
+  --settings DEPLOYED_COMMIT="$COMMIT" --output none
 # --clean removes the previous build, including the page cache Next.js writes
 # to disk at runtime; the restart drops what the running server holds in
 # memory. Without both, the site keeps serving pages from the old build.

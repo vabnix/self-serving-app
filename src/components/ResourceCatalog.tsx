@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import IconTile from "@/components/IconTile";
-import { type CatalogItem, findCatalogItem } from "@/lib/catalog";
+import { type CatalogItem, findService } from "@/lib/catalog";
 
 const sizes = [
   { key: "small", label: "Small:" },
@@ -31,7 +31,7 @@ export default function ResourceCatalog({ items }: { items: CatalogItem[] }) {
               <h3 className="eyebrow">Includes</h3>
               <ul className="mt-3 flex flex-col gap-2.5">
                 {item.components.map((id) => {
-                  const component = findCatalogItem(id);
+                  const component = findService(id);
                   if (!component) return null;
                   return (
                     <li key={id} className="flex items-center gap-2.5">

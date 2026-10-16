@@ -51,12 +51,10 @@ export function parseRequest(
     return fail("Enter a valid resource group name.");
   }
 
-  const location = item.needsResourceGroup ? text("location") : undefined;
-  if (
-    item.needsResourceGroup &&
-    !regions.some((option) => option.value === location)
-  ) {
-    return fail("Select a region.");
+  // Optional: blank keeps the resource group's region.
+  const location = item.needsResourceGroup ? text("location") : "";
+  if (location && !regions.some((option) => option.value === location)) {
+    return fail("Select a valid region.");
   }
 
   const size = item.sizing ? text("size") : undefined;

@@ -162,6 +162,14 @@ const serviceNames: Record<string, (parts: NameParts) => GeneratedName[]> = {
       value: hyphenated("fde", workload, `${env}-${suffix}`, 46),
     },
   ],
+  // Retired from the catalog; kept so older requests still show their names.
+  "aks-namespace": ({ workload, env }) => [
+    {
+      key: "namespace",
+      label: "Namespace",
+      value: hyphenated("", workload, env, 63),
+    },
+  ],
   aks: ({ workload, env }) => [
     {
       key: "aks_cluster",

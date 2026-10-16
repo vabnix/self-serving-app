@@ -609,8 +609,12 @@ export const services: CatalogItem[] = [
 
 const serviceById = new Map(services.map((service) => [service.id, service]));
 
+export function findService(id: string) {
+  return serviceById.get(id);
+}
+
 function service(id: string) {
-  const found = serviceById.get(id);
+  const found = findService(id);
   if (!found) throw new Error(`Unknown catalog service "${id}".`);
   return found;
 }
