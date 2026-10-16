@@ -4,7 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import IconTile from "@/components/IconTile";
 import RequestForm from "@/components/RequestForm";
-import { catalog } from "@/lib/catalog";
+import {
+  catalog,
+  findCatalogItem,
+  questionGroups,
+  serviceIds,
+} from "@/lib/catalog";
 
 export function generateStaticParams() {
   return catalog.map((item) => ({ template: item.id }));
@@ -14,7 +19,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/request/[template]">): Promise<Metadata> {
   const { template } = await params;
-  const item = catalog.find((item) => item.id === template);
+  const item = findCatalogItem(template);
   return { title: item && `Request ${item.name}` };
 }
 
@@ -22,7 +27,7 @@ export default async function RequestPage({
   params,
 }: PageProps<"/request/[template]">) {
   const { template } = await params;
-  const item = catalog.find((item) => item.id === template);
+  const item = findCatalogItem(template);
   if (!item) notFound();
 
   return (
@@ -51,7 +56,8 @@ export default async function RequestPage({
           costNote={item.costNote}
           provisionable={item.provisionable ?? false}
           needsResourceGroup={item.needsResourceGroup ?? false}
-          questions={item.questions}
+          serviceIds={serviceIds(item.id)}
+          questionGroups={questionGroups(item)}
         />
       </div>
     </main>

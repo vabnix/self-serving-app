@@ -107,17 +107,18 @@ jobs:
           subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
 
       # The requester names the resource group. Use it if it exists, create it
-      # otherwise. Groups are shared between requests, so they are created
-      # here rather than by a request's Terraform state.
+      # in the requested region otherwise. Groups are shared between requests,
+      # so they are created here rather than by a request's Terraform state.
       - name: Ensure resource group
         if: inputs.action != 'destroy'
         run: |
           group="$(jq -r '.resource_group // empty' "$TF_DIR/terraform.tfvars.json")"
+          location="$(jq -r '.location // empty' "$TF_DIR/terraform.tfvars.json")"
           if [[ -z "$group" ]]; then exit 0; fi
           if az group show --name "$group" --output none 2>/dev/null; then
             echo "Using existing resource group $group."
           else
-            az group create --name "$group" --location "$DEFAULT_LOCATION" \
+            az group create --name "$group" --location "${location:-$DEFAULT_LOCATION}" \
               --tags managed_by=self-service-portal --output none
             echo "Created resource group $group."
           fi

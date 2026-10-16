@@ -25,7 +25,9 @@ data "azurerm_resource_group" "target" {
 resource "azurerm_storage_account" "this" {
   name                = var.resource_names.storage_account
   resource_group_name = data.azurerm_resource_group.target.name
-  location            = data.azurerm_resource_group.target.location
+  # Requests made before the region question have no location and keep the
+  # resource group's region.
+  location = coalesce(var.location, data.azurerm_resource_group.target.location)
 
   account_kind             = "StorageV2"
   account_tier             = "Standard"

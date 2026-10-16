@@ -7,7 +7,7 @@ import AutoRefresh from "@/components/AutoRefresh";
 import DeleteResourceButton from "@/components/DeleteResourceButton";
 import IconTile from "@/components/IconTile";
 import StatusBadge from "@/components/StatusBadge";
-import { catalog } from "@/lib/catalog";
+import { findCatalogItem, serviceIds } from "@/lib/catalog";
 import { capitalize, environmentLabel, formatDateTime } from "@/lib/format";
 import { generateNames } from "@/lib/naming";
 import { getRequest, listEvents, type RequestEventType } from "@/lib/requests";
@@ -85,8 +85,8 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
   const request = await getRequest(id);
   if (!request) notFound();
 
-  const template = catalog.find((item) => item.id === request.templateId);
-  const names = generateNames(request.templateId, request);
+  const template = findCatalogItem(request.templateId);
+  const names = generateNames(serviceIds(request.templateId), request);
   const deployed = request.outputs && describeOutputs(request.outputs);
   // Requests saved before activity was recorded still show when they began.
   const recorded = await listEvents(id);

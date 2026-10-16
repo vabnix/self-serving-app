@@ -74,8 +74,9 @@ export async function deleteResource(id: string) {
     return { error: "This resource is already being deleted." };
   }
 
-  const item = catalog.find((item) => item.id === request.templateId);
-  if (!item?.provisionable || request.status === "submitted") {
+  // Decided by the request's own status, not the catalog: a request whose
+  // service was later removed or renamed may still have live resources.
+  if (request.status === "submitted") {
     await recordEvent(id, "deletion_requested");
     await setRequestStatus(id, "deleted");
     await recordEvent(id, "deleted", "Nothing had been provisioned.");
