@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { catalog } from "@/lib/catalog";
+import { findCatalogItem } from "@/lib/catalog";
 import { triggerPipeline } from "@/lib/pipeline";
 import { parseRequest } from "@/lib/request-inputs";
 import {
@@ -15,7 +15,7 @@ import {
 // Saves a request, starts the provisioning pipeline, and sends the user to
 // the request's page. Returns an error message when the form is invalid.
 export async function submitRequest(templateId: string, data: FormData) {
-  const item = catalog.find((item) => item.id === templateId);
+  const item = findCatalogItem(templateId);
   if (!item) return { error: "This service is no longer in the catalog." };
 
   const user = await getCurrentUser();

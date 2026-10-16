@@ -237,15 +237,16 @@ export default function RequestForm({
             {needsResourceGroup && (
               <div>
                 <label htmlFor="location" className={labelClass}>
-                  Region *
+                  Region
                 </label>
                 <select
                   id="location"
                   name="location"
-                  required
+                  defaultValue=""
                   aria-describedby="location-hint"
                   className={fieldClass}
                 >
+                  <option value="">Same as resource group</option>
                   {regions.map((region) => (
                     <option key={region.value} value={region.value}>
                       {region.label}
@@ -253,8 +254,9 @@ export default function RequestForm({
                   ))}
                 </select>
                 <p id="location-hint" className={helpClass}>
-                  Where the resources are created. A new resource group is
-                  created here too.
+                  Where the resources are created. Leave as is to use the
+                  resource group&apos;s region; a new group is created in
+                  Central US.
                 </p>
               </div>
             )}

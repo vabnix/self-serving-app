@@ -11,7 +11,8 @@ export const environments = [
   { value: "prod", label: "Production" },
 ];
 
-// Regions developers may choose. The first is the default.
+// Regions developers may choose. Leaving the region blank uses the resource
+// group's region, or Central US when the workflow creates the group.
 export const regions = [
   { value: "centralus", label: "Central US" },
   { value: "eastus", label: "East US" },

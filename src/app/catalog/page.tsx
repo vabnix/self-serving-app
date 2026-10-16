@@ -30,8 +30,9 @@ export default function CatalogPage({ searchParams }: PageProps<"/catalog">) {
         single service, or a bundle of services that are set up to work
         together.
       </p>
-      {/* The default view is prerendered; the filters are read per request. */}
-      <Suspense fallback={<CatalogBrowser view={views[0]} />}>
+      {/* The filters are read per request. Until then the shell shows the
+          view switch with no view selected, so it never shows the wrong one. */}
+      <Suspense fallback={<CatalogBrowser />}>
         <FilteredCatalog searchParams={searchParams} />
       </Suspense>
     </main>
@@ -54,12 +55,14 @@ function CatalogBrowser({
   view,
   category,
 }: {
-  view: (typeof views)[number];
+  view?: (typeof views)[number];
   category?: string;
 }) {
-  const items = category
-    ? view.items.filter((item) => item.category === category)
-    : view.items;
+  const items = !view
+    ? []
+    : category
+      ? view.items.filter((item) => item.category === category)
+      : view.items;
 
   return (
     <>
@@ -71,9 +74,9 @@ function CatalogBrowser({
           <Link
             key={option.key}
             href={option.key === "services" ? "/catalog" : `/catalog?view=${option.key}`}
-            aria-current={option.key === view.key ? "page" : undefined}
+            aria-current={option.key === view?.key ? "page" : undefined}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              option.key === view.key
+              option.key === view?.key
                 ? "bg-white text-blue-700 shadow-sm"
                 : "text-zinc-600 hover:text-zinc-900"
             }`}
@@ -86,7 +89,7 @@ function CatalogBrowser({
         ))}
       </nav>
 
-      {view.key === "services" && (
+      {view?.key === "services" && (
         <nav aria-label="Service category" className="mt-5 flex flex-wrap gap-2">
           <Link
             href="/catalog"
