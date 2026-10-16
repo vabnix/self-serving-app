@@ -10,7 +10,3 @@ export function formatDateTime(iso: string) {
 export function environmentLabel(value: string) {
   return environments.find((option) => option.value === value)?.label ?? value;
 }
-
-export function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}

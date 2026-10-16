@@ -5,7 +5,6 @@ import {
   isExpiryRequired,
   regions,
   resourceGroupPattern,
-  sizes,
   teams,
   today,
 } from "@/lib/request-options";
@@ -58,8 +57,11 @@ export function parseRequest(
   }
 
   const size = item.sizing ? text("size") : undefined;
-  if (item.sizing && !sizes.some((option) => option.value === size)) {
-    return fail("Select a size.");
+  const sizeOption = item.sizing?.options.find(
+    (option) => option.value === size,
+  );
+  if (item.sizing && !sizeOption) {
+    return fail(`Select a ${item.sizing.label.toLowerCase()}.`);
   }
 
   const technicalContact = text("technical_contact");
@@ -89,6 +91,7 @@ export function parseRequest(
     ...(resourceGroup && { resource_group: resourceGroup }),
     ...(location && { location }),
     ...(size && { size }),
+    ...(sizeOption?.components && { component_sizes: sizeOption.components }),
     ...(expiresOn && { expires_on: expiresOn }),
     resource_names: Object.fromEntries(
       generateNames(serviceIds(item.id), { name, team, environment }).map((generated) => [

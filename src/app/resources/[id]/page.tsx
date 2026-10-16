@@ -7,8 +7,8 @@ import AutoRefresh from "@/components/AutoRefresh";
 import DeleteResourceButton from "@/components/DeleteResourceButton";
 import IconTile from "@/components/IconTile";
 import StatusBadge from "@/components/StatusBadge";
-import { findCatalogItem, serviceIds } from "@/lib/catalog";
-import { capitalize, environmentLabel, formatDateTime } from "@/lib/format";
+import { findCatalogItem, serviceIds, sizeLabel } from "@/lib/catalog";
+import { environmentLabel, formatDateTime } from "@/lib/format";
 import { generateNames } from "@/lib/naming";
 import { getRequest, listEvents, type RequestEventType } from "@/lib/requests";
 
@@ -282,7 +282,9 @@ async function RequestDetails({ params }: { params: Promise<{ id: string }> }) {
                 {environmentLabel(request.environment)}
               </Tile>
               {request.size && (
-                <Tile label="Size">{capitalize(request.size)}</Tile>
+                <Tile label="Size">
+                  {sizeLabel(request.templateId, request.size)}
+                </Tile>
               )}
               {request.requester && (
                 <Tile label="Requested by">{request.requester}</Tile>

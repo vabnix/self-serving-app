@@ -20,14 +20,6 @@ export const regions = [
   { value: "westus2", label: "West US 2" },
 ];
 
-export const sizes = [
-  { value: "small", label: "Small (Dev)" },
-  { value: "medium", label: "Medium (Staging)" },
-  { value: "large", label: "Large (Prod)" },
-] as const;
-
-export type Size = (typeof sizes)[number]["value"];
-
 // Azure's rule for resource group names: up to 90 letters, numbers,
 // underscores, hyphens, periods and parentheses, not ending in a period.
 export const resourceGroupPattern = "[\\w.()\\-]{0,89}[\\w()\\-]";

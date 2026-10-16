@@ -45,7 +45,7 @@ type NameParts = { workload: string; env: string; suffix: string };
 
 // The resource names each catalog service creates.
 const serviceNames: Record<string, (parts: NameParts) => GeneratedName[]> = {
-  "app-service-sql": ({ workload, env, suffix }) => [
+  "app-service": ({ workload, env, suffix }) => [
     {
       key: "app_service_plan",
       label: "App Service plan",
@@ -56,6 +56,8 @@ const serviceNames: Record<string, (parts: NameParts) => GeneratedName[]> = {
       label: "App Service",
       value: hyphenated("app", workload, `${env}-${suffix}`, 60),
     },
+  ],
+  "sql-database": ({ workload, env, suffix }) => [
     {
       key: "sql_server",
       label: "SQL server",

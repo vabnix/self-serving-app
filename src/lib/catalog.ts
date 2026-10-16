@@ -36,11 +36,12 @@ export type CatalogItem = {
   category: string;
   description: string;
   icon: LucideIcon;
-  // Set only when a t-shirt size changes what gets provisioned. `help` says
-  // what the size controls; `cost` is the estimated monthly cost per size.
+  // Set only when the choice changes what gets provisioned: a tier, plan or
+  // size, named by `label`. The first option is the default.
   sizing?: {
+    label: string;
     help: string;
-    cost?: { small: string; medium: string; large: string };
+    options: SizeOption[];
   };
   // Pricing shown for services that have no per-size cost.
   costNote?: string;
@@ -59,6 +60,19 @@ export type CatalogItem = {
   validate?: Validator;
 };
 
+export type SizeOption = {
+  // Passed to Terraform as `size`.
+  value: string;
+  label: string;
+  // What the option provisions, shown next to its label on the form.
+  detail?: string;
+  // Estimated monthly cost.
+  cost: string;
+  // For bundle presets: the option each sized service in the bundle gets,
+  // passed to Terraform as `component_sizes`.
+  components?: Record<string, string>;
+};
+
 type Validator = (
   inputs: TerraformInputs,
   asked: (question: string) => boolean,
@@ -67,47 +81,6 @@ type Validator = (
 // Cost figures are rough estimates for a typical setup in a US region, in USD.
 // Check them against the Azure pricing calculator before relying on them.
 export const services: CatalogItem[] = [
-  {
-    id: "app-service-sql",
-    name: "App Service + SQL Database",
-    category: "Web & Database",
-    description:
-      "Web application with SQL Server database. Best for traditional web apps and APIs.",
-    icon: Globe,
-    needsResourceGroup: true,
-    sizing: {
-      help: "Sets the App Service plan and SQL database tier.",
-      cost: {
-        small: "$50-100/month",
-        medium: "$200-400/month",
-        large: "$800-1500/month",
-      },
-    },
-    questions: [
-      {
-        name: "runtime_stack",
-        label: "Runtime stack",
-        type: "select",
-        options: [
-          { value: "dotnet-9", label: ".NET 9" },
-          { value: "dotnet-8", label: ".NET 8" },
-          { value: "node-22", label: "Node.js 22" },
-          { value: "node-20", label: "Node.js 20" },
-          { value: "python-3.12", label: "Python 3.12" },
-          { value: "java-21", label: "Java 21" },
-          { value: "java-17", label: "Java 17" },
-        ],
-      },
-      {
-        name: "health_check_path",
-        label: "Health check path",
-        type: "text",
-        placeholder: "e.g., /health",
-        pattern: "/.*",
-        help: "Optional. Path the platform pings to check the app is up.",
-      },
-    ],
-  },
   {
     id: "storage",
     name: "Azure Storage Account",
@@ -207,12 +180,28 @@ export const services: CatalogItem[] = [
     icon: Webhook,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the tier: Developer (no SLA), Basic v2 or Standard v2.",
-      cost: {
-        small: "$50/month",
-        medium: "$150/month",
-        large: "$700/month",
-      },
+      label: "Tier",
+      help: "Developer is for non-production only: it has no SLA.",
+      options: [
+        {
+          value: "developer",
+          label: "Developer",
+          detail: "No SLA, non-production only",
+          cost: "$50/month",
+        },
+        {
+          value: "basicv2",
+          label: "Basic v2",
+          detail: "Production entry tier",
+          cost: "$150/month",
+        },
+        {
+          value: "standardv2",
+          label: "Standard v2",
+          detail: "Virtual network integration",
+          cost: "$700/month",
+        },
+      ],
     },
     questions: [
       {
@@ -243,12 +232,25 @@ export const services: CatalogItem[] = [
     icon: Container,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the CPU and memory of each replica.",
-      cost: {
-        small: "$0-20/month",
-        medium: "$50-150/month",
-        large: "$200-600/month",
-      },
+      label: "Replica size",
+      help: "CPU and memory of each replica. Cost is per replica kept running; scaling to zero costs less.",
+      options: [
+        {
+          value: "cpu-0.5",
+          label: "0.5 vCPU, 1 GiB",
+          cost: "Up to $40/month",
+        },
+        {
+          value: "cpu-1",
+          label: "1 vCPU, 2 GiB",
+          cost: "Up to $80/month",
+        },
+        {
+          value: "cpu-2",
+          label: "2 vCPU, 4 GiB",
+          cost: "Up to $155/month",
+        },
+      ],
     },
     questions: [
       {
@@ -307,12 +309,28 @@ export const services: CatalogItem[] = [
     icon: Package,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the tier: Basic, Standard or Premium.",
-      cost: {
-        small: "$5/month",
-        medium: "$20/month",
-        large: "$50/month",
-      },
+      label: "Tier",
+      help: "Private endpoints and geo-replication need Premium.",
+      options: [
+        {
+          value: "basic",
+          label: "Basic",
+          detail: "10 GB, for development",
+          cost: "$5/month",
+        },
+        {
+          value: "standard",
+          label: "Standard",
+          detail: "100 GB, higher throughput",
+          cost: "$20/month",
+        },
+        {
+          value: "premium",
+          label: "Premium",
+          detail: "500 GB, private endpoints, geo-replication",
+          cost: "$50/month",
+        },
+      ],
     },
     questions: [
       {
@@ -332,12 +350,28 @@ export const services: CatalogItem[] = [
     icon: Zap,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the hosting plan: Flex Consumption, Premium EP1 or Premium EP2.",
-      cost: {
-        small: "$0-10/month",
-        medium: "$150-200/month",
-        large: "$300-400/month",
-      },
+      label: "Hosting plan",
+      help: "Flex Consumption scales to zero; Premium stays warm, with no cold starts.",
+      options: [
+        {
+          value: "flex",
+          label: "Flex Consumption",
+          detail: "Scales to zero, pay per execution",
+          cost: "$0-10/month",
+        },
+        {
+          value: "ep1",
+          label: "Premium EP1",
+          detail: "Always warm, 1 vCPU, 3.5 GB",
+          cost: "$155-200/month",
+        },
+        {
+          value: "ep2",
+          label: "Premium EP2",
+          detail: "Always warm, 2 vCPU, 7 GB",
+          cost: "$310-400/month",
+        },
+      ],
     },
     questions: [
       {
@@ -363,12 +397,28 @@ export const services: CatalogItem[] = [
     icon: Database,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the compute tier: Burstable B1ms, General Purpose 2 or 4 vCores.",
-      cost: {
-        small: "$15-25/month",
-        medium: "$150-200/month",
-        large: "$350-450/month",
-      },
+      label: "Compute",
+      help: "Burstable suits development; General Purpose suits steady production load.",
+      options: [
+        {
+          value: "burstable-b1ms",
+          label: "Burstable B1ms",
+          detail: "1 vCore, 2 GiB",
+          cost: "$15-25/month",
+        },
+        {
+          value: "gp-2vcore",
+          label: "General Purpose, 2 vCores",
+          detail: "8 GiB",
+          cost: "$150-200/month",
+        },
+        {
+          value: "gp-4vcore",
+          label: "General Purpose, 4 vCores",
+          detail: "16 GiB",
+          cost: "$350-450/month",
+        },
+      ],
     },
     questions: [
       {
@@ -410,12 +460,13 @@ export const services: CatalogItem[] = [
         name: "postgres_high_availability",
         label: "Enable zone-redundant high availability",
         type: "boolean",
-        help: "Adds a standby server in another zone. Roughly doubles the cost. Not available on Small.",
+        help: "Adds a standby server in another zone. Roughly doubles the cost. Not available on Burstable.",
       },
     ],
     validate: (inputs) =>
-      inputs.postgres_high_availability && inputs.size === "small"
-        ? "High availability is not available on the Small (Burstable) tier. Choose Medium or Large."
+      inputs.postgres_high_availability &&
+      sizeOf(inputs, "postgresql") === "burstable-b1ms"
+        ? "High availability is not available on the Burstable tier. Choose a General Purpose size."
         : undefined,
   },
   {
@@ -510,12 +561,22 @@ export const services: CatalogItem[] = [
     icon: Earth,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the tier: Standard, or Premium with managed WAF rules and Private Link.",
-      cost: {
-        small: "$35/month plus traffic",
-        medium: "$35/month plus traffic",
-        large: "$330/month plus traffic",
-      },
+      label: "Tier",
+      help: "Premium adds Microsoft-managed WAF rules and Private Link origins.",
+      options: [
+        {
+          value: "standard",
+          label: "Standard",
+          detail: "Custom WAF rules",
+          cost: "$35/month plus traffic",
+        },
+        {
+          value: "premium",
+          label: "Premium",
+          detail: "Managed WAF rules, Private Link",
+          cost: "$330/month plus traffic",
+        },
+      ],
     },
     questions: [
       {
@@ -539,7 +600,7 @@ export const services: CatalogItem[] = [
         label: "Enable web application firewall",
         type: "boolean",
         defaultValue: true,
-        help: "Standard supports custom rules only. Microsoft-managed rule sets need Premium (Large).",
+        help: "Standard supports custom rules only. Microsoft-managed rule sets need Premium.",
       },
     ],
   },
@@ -551,12 +612,28 @@ export const services: CatalogItem[] = [
     icon: Ship,
     needsResourceGroup: true,
     sizing: {
-      help: "Sets the node size and cluster tier (Free for small, Standard otherwise).",
-      cost: {
-        small: "$150-250/month",
-        medium: "$400-700/month",
-        large: "$1,200-2,500/month",
-      },
+      label: "Node size",
+      help: "VM size of the nodes in the default pool. Cost is per node.",
+      options: [
+        {
+          value: "d2s-v5",
+          label: "2 vCPU, 8 GB",
+          detail: "Standard_D2s_v5",
+          cost: "$70/month per node",
+        },
+        {
+          value: "d4s-v5",
+          label: "4 vCPU, 16 GB",
+          detail: "Standard_D4s_v5",
+          cost: "$140/month per node",
+        },
+        {
+          value: "d8s-v5",
+          label: "8 vCPU, 32 GB",
+          detail: "Standard_D8s_v5",
+          cost: "$280/month per node",
+        },
+      ],
     },
     questions: [
       {
@@ -586,6 +663,16 @@ export const services: CatalogItem[] = [
         help: "Entra ID group with cluster admin rights. Local accounts are turned off.",
       },
       {
+        name: "aks_tier",
+        label: "Cluster tier",
+        type: "select",
+        options: [
+          { value: "Free", label: "Free (no uptime SLA)" },
+          { value: "Standard", label: "Standard (99.95% SLA, about $73/month)" },
+        ],
+        help: "Production clusters must use Standard.",
+      },
+      {
         name: "aks_autoscaling",
         label: "Enable cluster autoscaler",
         type: "boolean",
@@ -599,15 +686,124 @@ export const services: CatalogItem[] = [
         help: "Lets pods access other Azure resources without secrets.",
       },
     ],
-    validate: (inputs) =>
-      inputs.aks_autoscaling &&
-      Number(inputs.aks_max_nodes) < Number(inputs.aks_node_count)
-        ? "Maximum nodes cannot be less than the node count."
-        : undefined,
+    validate: (inputs) => {
+      if (inputs.environment === "prod" && inputs.aks_tier !== "Standard") {
+        return "Production clusters must use the Standard tier, which has an uptime SLA.";
+      }
+      if (
+        inputs.aks_autoscaling &&
+        Number(inputs.aks_max_nodes) < Number(inputs.aks_node_count)
+      ) {
+        return "Maximum nodes cannot be less than the node count.";
+      }
+    },
   },
 ];
 
-const serviceById = new Map(services.map((service) => [service.id, service]));
+// Services offered only as part of a bundle.
+const bundleParts: CatalogItem[] = [
+  {
+    id: "app-service",
+    name: "Azure App Service",
+    category: "Web",
+    description: "Managed hosting for web apps and APIs.",
+    icon: Globe,
+    needsResourceGroup: true,
+    sizing: {
+      label: "Plan",
+      help: "The App Service plan the app runs on.",
+      options: [
+        {
+          value: "b1",
+          label: "Basic B1",
+          detail: "1 core, 1.75 GB",
+          cost: "$13/month",
+        },
+        {
+          value: "p0v3",
+          label: "Premium P0v3",
+          detail: "1 vCPU, 4 GB, autoscale",
+          cost: "$62/month",
+        },
+        {
+          value: "p1v3",
+          label: "Premium P1v3",
+          detail: "2 vCPU, 8 GB, autoscale",
+          cost: "$124/month",
+        },
+      ],
+    },
+    questions: [
+      {
+        name: "runtime_stack",
+        label: "Runtime stack",
+        type: "select",
+        options: [
+          { value: "dotnet-9", label: ".NET 9" },
+          { value: "dotnet-8", label: ".NET 8" },
+          { value: "node-22", label: "Node.js 22" },
+          { value: "node-20", label: "Node.js 20" },
+          { value: "python-3.12", label: "Python 3.12" },
+          { value: "java-21", label: "Java 21" },
+          { value: "java-17", label: "Java 17" },
+        ],
+      },
+      {
+        name: "health_check_path",
+        label: "Health check path",
+        type: "text",
+        placeholder: "e.g., /health",
+        pattern: "/.*",
+        help: "Optional. Path the platform pings to check the app is up.",
+      },
+    ],
+  },
+  {
+    id: "sql-database",
+    name: "Azure SQL Database",
+    category: "Database",
+    description: "Managed SQL Server database.",
+    icon: Database,
+    needsResourceGroup: true,
+    sizing: {
+      label: "Tier",
+      help: "The database service tier.",
+      options: [
+        {
+          value: "basic",
+          label: "Basic",
+          detail: "5 DTUs, 2 GB",
+          cost: "$5/month",
+        },
+        {
+          value: "s1",
+          label: "Standard S1",
+          detail: "20 DTUs, 250 GB",
+          cost: "$30/month",
+        },
+        {
+          value: "gp-2vcore",
+          label: "General Purpose, 2 vCores",
+          detail: "Provisioned compute",
+          cost: "$370/month",
+        },
+      ],
+    },
+    questions: [],
+  },
+];
+
+const serviceById = new Map(
+  [...services, ...bundleParts].map((service) => [service.id, service]),
+);
+
+// The size option chosen for a service. A bundle preset sets one per service.
+function sizeOf(inputs: TerraformInputs, serviceId: string) {
+  const parts = inputs.component_sizes;
+  return typeof parts === "object" && parts[serviceId]
+    ? parts[serviceId]
+    : inputs.size;
+}
 
 export function findService(id: string) {
   return serviceById.get(id);
@@ -640,6 +836,44 @@ function bundle(
 
 export const bundles: CatalogItem[] = [
   bundle({
+    // Kept from when this was a single catalog item, so older requests
+    // still find it.
+    id: "app-service-sql",
+    name: "App Service + SQL Database",
+    category: "Bundle",
+    description:
+      "Web application with SQL Server database. Best for traditional web apps and APIs.",
+    icon: Globe,
+    components: ["app-service", "sql-database"],
+    sizing: {
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "App Service Basic B1, SQL Basic",
+          cost: "$20/month",
+          components: { "app-service": "b1", "sql-database": "basic" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "App Service Premium P0v3, SQL Standard S1",
+          cost: "$90/month",
+          components: { "app-service": "p0v3", "sql-database": "s1" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "App Service Premium P1v3, SQL 2 vCores",
+          cost: "$495/month",
+          components: { "app-service": "p1v3", "sql-database": "gp-2vcore" },
+        },
+      ],
+    },
+  }),
+  bundle({
     id: "bundle-container-microservice",
     name: "Containerized Microservice",
     category: "Bundle",
@@ -650,12 +884,31 @@ export const bundles: CatalogItem[] = [
     // The app pulls from the registry with a managed identity.
     omit: ["acr_admin_enabled"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$5-30/month",
-        medium: "$75-200/month",
-        large: "$250-700/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "Container App 0.5 vCPU, Registry Basic",
+          cost: "$5-45/month",
+          components: { "container-app": "cpu-0.5", "container-registry": "basic" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "Container App 1 vCPU, Registry Standard",
+          cost: "$20-100/month",
+          components: { "container-app": "cpu-1", "container-registry": "standard" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "Container App 2 vCPU, Registry Premium",
+          cost: "$50-205/month",
+          components: { "container-app": "cpu-2", "container-registry": "premium" },
+        },
+      ],
     },
   }),
   bundle({
@@ -667,12 +920,31 @@ export const bundles: CatalogItem[] = [
     icon: Zap,
     components: ["functions", "storage", "app-insights"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$0-20/month",
-        medium: "$160-250/month",
-        large: "$320-500/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "Functions Flex Consumption",
+          cost: "$0-10/month plus usage",
+          components: { functions: "flex" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "Functions Premium EP1",
+          cost: "$155-200/month plus usage",
+          components: { functions: "ep1" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "Functions Premium EP2",
+          cost: "$310-400/month plus usage",
+          components: { functions: "ep2" },
+        },
+      ],
     },
   }),
   bundle({
@@ -686,12 +958,31 @@ export const bundles: CatalogItem[] = [
     // API Management must reach the app, so its ingress is always external.
     omit: ["container_ingress"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$50-80/month",
-        medium: "$200-350/month",
-        large: "$900-1,400/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "API Management Developer, Container App 0.5 vCPU",
+          cost: "$50-90/month",
+          components: { apim: "developer", "container-app": "cpu-0.5" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "API Management Basic v2, Container App 1 vCPU",
+          cost: "$150-230/month",
+          components: { apim: "basicv2", "container-app": "cpu-1" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "API Management Standard v2, Container App 2 vCPU",
+          cost: "$700-855/month",
+          components: { apim: "standardv2", "container-app": "cpu-2" },
+        },
+      ],
     },
   }),
   bundle({
@@ -705,12 +996,31 @@ export const bundles: CatalogItem[] = [
     // Storage events come from the bundle's own storage account.
     omit: ["eventgrid_source_storage_account"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$0-20/month",
-        medium: "$160-250/month",
-        large: "$320-500/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "Functions Flex Consumption",
+          cost: "$0-10/month plus usage",
+          components: { functions: "flex" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "Functions Premium EP1",
+          cost: "$155-200/month plus usage",
+          components: { functions: "ep1" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "Functions Premium EP2",
+          cost: "$310-400/month plus usage",
+          components: { functions: "ep2" },
+        },
+      ],
     },
   }),
   bundle({
@@ -722,12 +1032,31 @@ export const bundles: CatalogItem[] = [
     icon: Database,
     components: ["container-app", "postgresql", "app-insights"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$15-50/month",
-        medium: "$200-400/month",
-        large: "$600-1,100/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "Container App 0.5 vCPU, PostgreSQL Burstable B1ms",
+          cost: "$15-65/month",
+          components: { "container-app": "cpu-0.5", postgresql: "burstable-b1ms" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "Container App 1 vCPU, PostgreSQL 2 vCores",
+          cost: "$150-280/month",
+          components: { "container-app": "cpu-1", postgresql: "gp-2vcore" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "Container App 2 vCPU, PostgreSQL 4 vCores",
+          cost: "$350-605/month",
+          components: { "container-app": "cpu-2", postgresql: "gp-4vcore" },
+        },
+      ],
     },
   }),
   bundle({
@@ -742,12 +1071,31 @@ export const bundles: CatalogItem[] = [
     // always external.
     omit: ["frontdoor_origin_hostname", "container_ingress"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$35-60/month plus traffic",
-        medium: "$85-200/month plus traffic",
-        large: "$530-950/month plus traffic",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "Front Door Standard, Container App 0.5 vCPU",
+          cost: "$35-75/month plus traffic",
+          components: { "front-door": "standard", "container-app": "cpu-0.5" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "Front Door Standard, Container App 1 vCPU",
+          cost: "$35-115/month plus traffic",
+          components: { "front-door": "standard", "container-app": "cpu-1" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "Front Door Premium, Container App 2 vCPU",
+          cost: "$330-485/month plus traffic",
+          components: { "front-door": "premium", "container-app": "cpu-2" },
+        },
+      ],
     },
   }),
   bundle({
@@ -761,12 +1109,31 @@ export const bundles: CatalogItem[] = [
     // The cluster pulls from the registry with its kubelet identity.
     omit: ["acr_admin_enabled"],
     sizing: {
-      help: "Sets the tier of each service in the bundle.",
-      cost: {
-        small: "$155-260/month",
-        medium: "$420-750/month",
-        large: "$1,250-2,600/month",
-      },
+      label: "Size",
+      help: "Each size is a preset that sets the tier of every service in the bundle. AKS cost is for 2 nodes.",
+      options: [
+        {
+          value: "small",
+          label: "Small",
+          detail: "AKS 2 vCPU nodes, Registry Basic",
+          cost: "$145+/month",
+          components: { aks: "d2s-v5", "container-registry": "basic" },
+        },
+        {
+          value: "medium",
+          label: "Medium",
+          detail: "AKS 4 vCPU nodes, Registry Standard",
+          cost: "$300+/month",
+          components: { aks: "d4s-v5", "container-registry": "standard" },
+        },
+        {
+          value: "large",
+          label: "Large",
+          detail: "AKS 8 vCPU nodes, Registry Premium",
+          cost: "$610+/month",
+          components: { aks: "d8s-v5", "container-registry": "premium" },
+        },
+      ],
     },
   }),
 ];
@@ -781,6 +1148,15 @@ export function findCatalogItem(id: string) {
 // itself. Falls back to the ID for items no longer in the catalog.
 export function serviceIds(templateId: string) {
   return findCatalogItem(templateId)?.components ?? [templateId];
+}
+
+// The name of a request's size option, such as "Premium". Falls back to the
+// stored value for options no longer in the catalog.
+export function sizeLabel(templateId: string, size: string) {
+  const option = findCatalogItem(templateId)?.sizing?.options.find(
+    (option) => option.value === size,
+  );
+  return option?.label ?? size.charAt(0).toUpperCase() + size.slice(1);
 }
 
 // The item's questions grouped by service, for the request form. A service

@@ -3,12 +3,6 @@ import Link from "next/link";
 import IconTile from "@/components/IconTile";
 import { type CatalogItem, findService } from "@/lib/catalog";
 
-const sizes = [
-  { key: "small", label: "Small:" },
-  { key: "medium", label: "Medium:" },
-  { key: "large", label: "Large:" },
-] as const;
-
 export default function ResourceCatalog({ items }: { items: CatalogItem[] }) {
   return (
     <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -47,16 +41,19 @@ export default function ResourceCatalog({ items }: { items: CatalogItem[] }) {
               </ul>
             </div>
           )}
-          {(item.sizing?.cost || item.costNote) && (
+          {(item.sizing || item.costNote) && (
             <div className="mt-6">
               <h3 className="eyebrow">Estimated monthly cost</h3>
-              {item.sizing?.cost ? (
+              {item.sizing ? (
                 <dl className="mt-3 flex flex-col gap-2">
-                  {sizes.map((size) => (
-                    <div key={size.key} className="flex justify-between">
-                      <dt className="text-zinc-600">{size.label}</dt>
-                      <dd className="font-medium tabular-nums">
-                        {item.sizing?.cost?.[size.key]}
+                  {item.sizing.options.map((option) => (
+                    <div
+                      key={option.value}
+                      className="flex justify-between gap-4"
+                    >
+                      <dt className="text-zinc-600">{option.label}:</dt>
+                      <dd className="text-right font-medium whitespace-nowrap tabular-nums">
+                        {option.cost}
                       </dd>
                     </div>
                   ))}

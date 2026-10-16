@@ -5,8 +5,8 @@ import { Suspense } from "react";
 import AutoRefresh from "@/components/AutoRefresh";
 import IconTile from "@/components/IconTile";
 import StatusBadge from "@/components/StatusBadge";
-import { catalog } from "@/lib/catalog";
-import { capitalize, environmentLabel, formatDateTime } from "@/lib/format";
+import { catalog, sizeLabel } from "@/lib/catalog";
+import { environmentLabel, formatDateTime } from "@/lib/format";
 import { listRequests } from "@/lib/requests";
 
 export const metadata: Metadata = {
@@ -45,7 +45,10 @@ async function RequestList() {
             label: "Environment",
             value: environmentLabel(request.environment),
           },
-          { label: "Size", value: request.size && capitalize(request.size) },
+          {
+            label: "Size",
+            value: request.size && sizeLabel(request.templateId, request.size),
+          },
           { label: "Created", value: formatDateTime(request.createdAt) },
         ].filter((field) => field.value);
         return (

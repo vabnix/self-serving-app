@@ -10,10 +10,8 @@ import {
   isExpiryRequired,
   regions,
   resourceGroupPattern,
-  sizes,
   teams,
   today,
-  type Size,
 } from "@/lib/request-options";
 
 const labelClass = "text-sm font-semibold";
@@ -120,7 +118,7 @@ export default function RequestForm({
   // Untitled for a single service; one titled group per service in a bundle.
   questionGroups: { title?: string; questions: Question[] }[];
 }) {
-  const [size, setSize] = useState<Size>("small");
+  const [size, setSize] = useState(sizing?.options[0].value);
   const [basics, setBasics] = useState({
     name: "",
     team: "",
@@ -128,7 +126,8 @@ export default function RequestForm({
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const cost = sizing?.cost?.[size] ?? costNote;
+  const cost =
+    sizing?.options.find((option) => option.value === size)?.cost ?? costNote;
   const generatedNames = generateNames(serviceIds, basics);
   const expiryRequired = isExpiryRequired(basics.environment);
 
@@ -282,20 +281,22 @@ export default function RequestForm({
             {sizing && (
               <div>
                 <label htmlFor="size" className={labelClass}>
-                  Size *
+                  {sizing.label} *
                 </label>
                 <select
                   id="size"
                   name="size"
                   required
                   value={size}
-                  onChange={(event) => setSize(event.target.value as Size)}
+                  onChange={(event) => setSize(event.target.value)}
                   aria-describedby="size-hint"
                   className={fieldClass}
                 >
-                  {sizes.map((option) => (
+                  {sizing.options.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {option.detail
+                        ? `${option.label} (${option.detail})`
+                        : option.label}
                     </option>
                   ))}
                 </select>
